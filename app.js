@@ -345,5 +345,3 @@ window.selectReason = selectReason;
 window.submitData = submitData;
 window.setQtyFromInput = setQtyFromInput;
 
-<link rel="stylesheet" href="style.css?v=8">
-<script src="app.js?v=8"></script>
