@@ -13,7 +13,7 @@ html, body {
 }
 
 body {
-  padding: 10px;
+  padding: 8px;
 }
 
 .app {
@@ -22,40 +22,40 @@ body {
 
 .card {
   width: 100%;
-  min-height: calc(100dvh - 20px);
+  min-height: calc(100dvh - 16px);
   background: white;
-  border-radius: 34px;
-  padding: 34px 22px 32px;
-  box-shadow: 0 10px 28px rgba(31,42,68,.08);
+  border-radius: 28px;
+  padding: 24px 18px 26px;
+  box-shadow: 0 8px 24px rgba(31,42,68,.08);
 }
 
 h1 {
-  margin: 0 0 34px;
+  margin: 0 0 26px;
   text-align: center;
-  font-size: 42px;
+  font-size: 34px;
   font-weight: 900;
 }
 
 h1 span {
   display: inline-flex;
-  width: 44px;
-  height: 44px;
-  margin-right: 12px;
+  width: 36px;
+  height: 36px;
+  margin-right: 10px;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: 9px;
   background: #4f7fd9;
   color: white;
 }
 
 .field {
-  margin-top: 30px;
+  margin-top: 22px;
 }
 
 label {
   display: block;
-  margin-bottom: 14px;
-  font-size: 34px;
+  margin-bottom: 10px;
+  font-size: 28px;
   font-weight: 900;
 }
 
@@ -65,11 +65,11 @@ label b {
 
 input {
   width: 100%;
-  height: 92px;
-  border: 4px solid #8d9ba8;
-  border-radius: 28px;
-  padding: 0 24px;
-  font-size: 34px;
+  height: 72px;
+  border: 3px solid #8d9ba8;
+  border-radius: 22px;
+  padding: 0 18px;
+  font-size: 26px;
   font-weight: 900;
   color: #1f2a44;
   outline: none;
@@ -77,13 +77,17 @@ input {
 
 input:focus {
   border-color: #4f7fd9;
-  box-shadow: 0 0 0 6px rgba(79,127,217,.15);
+  box-shadow: 0 0 0 5px rgba(79,127,217,.15);
 }
 
 .scan-row {
   display: grid;
-  grid-template-columns: 1fr 98px;
-  gap: 12px;
+  grid-template-columns: 1fr 84px;
+  gap: 10px;
+}
+
+.part-row {
+  grid-template-columns: 1fr 84px 84px;
 }
 
 .scan-row button,
@@ -97,24 +101,28 @@ input:focus {
 }
 
 .scan-row button {
-  height: 92px;
-  border-radius: 28px;
+  height: 72px;
+  border-radius: 22px;
   background: #4f7fd9;
   color: white;
-  font-size: 34px;
+  font-size: 24px;
+}
+
+.part-row button {
+  font-size: 22px;
 }
 
 .qty-row {
   display: grid;
-  grid-template-columns: 92px 1fr 92px;
-  gap: 16px;
+  grid-template-columns: 72px 1fr 72px;
+  gap: 12px;
 }
 
 .qty-row button,
-#qtyDisplay {
-  height: 92px;
-  border-radius: 28px;
-  font-size: 48px;
+#qtyInput {
+  height: 72px;
+  border-radius: 22px;
+  font-size: 36px;
   font-weight: 900;
 }
 
@@ -123,27 +131,27 @@ input:focus {
   color: #1f2a44;
 }
 
-#qtyDisplay {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 4px solid #8d9ba8;
+#qtyInput {
+  text-align: center;
+  padding: 0;
+  border: 3px solid #8d9ba8;
+  background: white;
 }
 
 .reason-grid {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .reason-grid button {
-  min-height: 88px;
-  border: 4px solid #d1dae5;
-  border-radius: 28px;
+  min-height: 72px;
+  border: 3px solid #d1dae5;
+  border-radius: 22px;
   background: white;
   color: #1f2a44;
-  font-size: 32px;
+  font-size: 26px;
   text-align: left;
-  padding: 0 24px;
+  padding: 0 18px;
 }
 
 .reason-grid button.active {
@@ -153,22 +161,22 @@ input:focus {
 }
 
 .msg {
-  min-height: 42px;
-  margin-top: 28px;
+  min-height: 36px;
+  margin-top: 22px;
   text-align: center;
-  font-size: 30px;
+  font-size: 24px;
   font-weight: 900;
 }
 
 .submit {
   width: 100%;
-  height: 96px;
-  margin-top: 34px;
-  border-radius: 48px;
+  height: 78px;
+  margin-top: 28px;
+  border-radius: 39px;
   background: #4f7fd9;
   color: white;
-  font-size: 40px;
-  letter-spacing: 6px;
+  font-size: 32px;
+  letter-spacing: 4px;
 }
 
 .hidden {
@@ -183,32 +191,32 @@ input:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 14px;
 }
 
 .scanner-box {
   width: 100%;
   max-width: 560px;
   background: white;
-  border-radius: 30px;
-  padding: 22px;
+  border-radius: 26px;
+  padding: 18px;
 }
 
 .scanner-box h2 {
   text-align: center;
-  font-size: 34px;
+  font-size: 30px;
 }
 
 .video-box {
   position: relative;
   background: #111827;
-  border-radius: 24px;
+  border-radius: 22px;
   overflow: hidden;
 }
 
 video {
   width: 100%;
-  height: 360px;
+  height: 330px;
   object-fit: cover;
 }
 
@@ -224,22 +232,22 @@ video {
 
 .scanner-box p {
   text-align: center;
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 900;
 }
 
 .scanner-box button {
   width: 100%;
-  height: 82px;
-  border-radius: 40px;
+  height: 72px;
+  border-radius: 36px;
   background: #e7edf3;
-  font-size: 34px;
+  font-size: 28px;
 }
 
 .scan-mode {
   margin-top: 10px;
   text-align: center;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 900;
   color: #94a3b8;
 }
@@ -263,20 +271,4 @@ video {
 .scan-target-box.cart {
   top: 43%;
   height: 18%;
-}
-
-.part-row {
-  grid-template-columns: 1fr 110px 110px;
-}
-
-.part-row button {
-  font-size: 28px;
-}
-
-.part-row {
-  grid-template-columns: 1fr 110px 110px;
-}
-
-.part-row button {
-  font-size: 28px;
 }
