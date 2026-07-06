@@ -17,13 +17,28 @@
 
       <div class="field">
         <label>◇ 商品別</label>
-        <input id="productType" placeholder="選填">
+        <input
+          id="productType"
+          type="text"
+          inputmode="latin"
+          autocapitalize="characters"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false">
       </div>
 
       <div class="field">
         <label>▣ 零件號碼 <b>*</b></label>
         <div class="part-input-block">
-          <input id="partNo" placeholder="輸入或掃描">
+          <input
+            id="partNo"
+            type="text"
+            inputmode="latin"
+            autocapitalize="characters"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+            placeholder="輸入或掃描">
         
           <div class="part-button-row">
             <button type="button" onclick="startPartOcr()">📷 拍照辨識</button>
@@ -66,7 +81,14 @@
       <div id="inboundCartBlock" class="field">
         <label>▤ 上架台車號 <b>*</b></label>
         <div class="scan-row">
-          <input id="inboundCart" placeholder="輸入或掃描">
+         <input
+            id="inboundCart"
+            type="text"
+            inputmode="latin"
+            autocapitalize="characters"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false">
           <button type="button" onclick="startCartScan('inboundCart', '掃描上架台車號')">掃</button>
         </div>
       </div>
@@ -74,7 +96,14 @@
       <div class="field">
         <label id="placeLabel">▥ 放置台車/箱籃 <b>*</b></label>
         <div class="scan-row">
-          <input id="placeCart" placeholder="輸入或掃描">
+          <input
+            id="placeCart"
+            type="text"
+            inputmode="latin"
+            autocapitalize="characters"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false">
           <button type="button" onclick="startCartScan('placeCart', '掃描放置位置')">掃</button>
         </div>
       </div>
