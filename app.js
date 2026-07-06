@@ -9,8 +9,8 @@ let scanMode = 'cart';
 
 const noInboundCartReasons = ['儲位遺留', '其他待處理', '確認溢品'];
 
-#const partNoRegex = /^[0-9A-Z\-]{5,20}$/;
-#const cartRegex = /^(HCA|VA|AS|M)-?[0-9A-Z]{3,5}$/;
+//const partNoRegex = /^[0-9A-Z\-]{5,20}$/;
+//const cartRegex = /^(HCA|VA|AS|M)-?[0-9A-Z]{3,5}$/;
 
 function changeQty(delta) {
   qty += delta;
@@ -148,10 +148,6 @@ function normalizeScanText(text) {
 
 function isValidScanText(text, mode) {
   return !!text;
-  #if (!text) return false;
-
-  #if (mode === 'part') {
-    #return partNoRegex.test(text);
   }
 
   if (mode === 'cart') {
