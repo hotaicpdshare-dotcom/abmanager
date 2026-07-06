@@ -41,8 +41,9 @@ function startPartScan() {
   startScan('partNo', '掃描零件條碼');
 }
 
-function startCartScan(targetId, title) {
-  startScan(targetId, title);
+function startPartScan() {
+  alert('掃描按鈕有觸發');
+  startScan('partNo', '掃描零件條碼');
 }
 
 async function startScan(targetId, title) {
