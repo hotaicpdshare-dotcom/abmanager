@@ -148,13 +148,6 @@ function normalizeScanText(text) {
 
 function isValidScanText(text, mode) {
   return !!text;
-  }
-
-  if (mode === 'cart') {
-    return cartRegex.test(text);
-  }
-
-  return true;
 }
 
 function stopScan() {
