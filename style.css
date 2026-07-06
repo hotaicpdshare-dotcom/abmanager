@@ -272,3 +272,11 @@ video {
 .part-row button {
   font-size: 28px;
 }
+
+.part-row {
+  grid-template-columns: 1fr 110px 110px;
+}
+
+.part-row button {
+  font-size: 28px;
+}
