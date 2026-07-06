@@ -147,10 +147,11 @@ function normalizeScanText(text) {
 }
 
 function isValidScanText(text, mode) {
-  if (!text) return false;
+  return !!text;
+  #if (!text) return false;
 
-  if (mode === 'part') {
-    return partNoRegex.test(text);
+  #if (mode === 'part') {
+    #return partNoRegex.test(text);
   }
 
   if (mode === 'cart') {
