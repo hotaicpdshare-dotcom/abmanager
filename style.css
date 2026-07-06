@@ -86,10 +86,6 @@ input:focus {
   gap: 10px;
 }
 
-.part-row {
-  grid-template-columns: 1fr 84px 84px;
-}
-
 .scan-row button,
 .qty-row button,
 .reason-grid button,
@@ -271,4 +267,26 @@ video {
 .scan-target-box.cart {
   top: 43%;
   height: 18%;
+}
+
+.part-input-block {
+  display: grid;
+  gap: 10px;
+}
+
+.part-button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.part-button-row button {
+  height: 56px;
+  border: none;
+  border-radius: 18px;
+  background: #4f7fd9;
+  color: white;
+  font-size: 24px;
+  font-weight: 900;
+  cursor: pointer;
 }
