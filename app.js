@@ -9,7 +9,7 @@ let scanMode = 'cart';
 
 const noInboundCartReasons = ['儲位遺留', '其他待處理', '確認溢品'];
 
-const partNoRegex = /^[0-9A-Z]{5}-[0-9A-Z]{5}$/;
+const partNoRegex = /^[0-9A-Z\-]{5,20}$/;
 const cartRegex = /^(HCA|VA|AS|M)-?[0-9A-Z]{3,5}$/;
 
 function changeQty(delta) {
@@ -83,11 +83,19 @@ async function startScan(config) {
     const hints = new Map();
 
     if (scanMode === 'part') {
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.CODE_128
-      ]);
-      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-    } else {
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+          ZXing.BarcodeFormat.CODE_128,
+          ZXing.BarcodeFormat.CODE_39,
+          ZXing.BarcodeFormat.CODE_93,
+          ZXing.BarcodeFormat.EAN_13,
+          ZXing.BarcodeFormat.EAN_8,
+          ZXing.BarcodeFormat.UPC_A,
+          ZXing.BarcodeFormat.UPC_E,
+          ZXing.BarcodeFormat.ITF,
+          ZXing.BarcodeFormat.CODABAR
+        ]);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      } else {
       hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
         ZXing.BarcodeFormat.CODE_128,
         ZXing.BarcodeFormat.CODE_39,
