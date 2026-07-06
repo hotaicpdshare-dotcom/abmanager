@@ -292,3 +292,9 @@ function showMsg(text, color) {
 
 window.addEventListener('pagehide', stopScan);
 
+window.startPartScan = startPartScan;
+window.startCartScan = startCartScan;
+window.stopScan = stopScan;
+window.changeQty = changeQty;
+window.selectReason = selectReason;
+window.submitData = submitData;
