@@ -115,16 +115,18 @@ input:focus {
 }
 
 .qty-row button,
-#qtyInput {
+#qtyDisplay {
   height: 72px;
   border-radius: 22px;
   font-size: 36px;
   font-weight: 900;
 }
 
-.qty-row button {
-  background: #e7edf3;
-  color: #1f2a44;
+#qtyDisplay {
+  text-align: center;
+  padding: 0;
+  border: 3px solid #8d9ba8;
+  background: white;
 }
 
 #qtyInput {
