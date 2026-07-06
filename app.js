@@ -5,8 +5,12 @@ let selectedReason = '';
 let codeReader = null;
 let scanTarget = '';
 let isScanning = false;
+let scanMode = 'cart';
 
 const noInboundCartReasons = ['儲位遺留', '其他待處理', '確認溢品'];
+
+const partNoRegex = /^[0-9A-Z]{5}-[0-9A-Z]{5}$/;
+const cartRegex = /^(HCA|VA|AS|M)-?[0-9A-Z]{3,5}$/;
 
 function changeQty(delta) {
   qty += delta;
@@ -38,37 +42,82 @@ function selectReason(btn, reason) {
   }
 }
 
-async function startScan(targetId, title) {
-  scanTarget = targetId;
+function startPartScan() {
+  startScan({
+    targetId: 'partNo',
+    title: '掃描零件條碼',
+    mode: 'part'
+  });
+}
+
+function startCartScan(targetId, title) {
+  startScan({
+    targetId,
+    title,
+    mode: 'cart'
+  });
+}
+
+async function startScan(config) {
+  scanTarget = config.targetId;
+  scanMode = config.mode;
   isScanning = true;
 
-  document.getElementById('scannerTitle').innerText = title;
+  document.getElementById('scannerTitle').innerText = config.title;
   document.getElementById('scannerModal').classList.remove('hidden');
+
+  const scanTargetBox = document.getElementById('scanTargetBox');
+  const scanModeText = document.getElementById('scanMode');
+
+  scanTargetBox.classList.remove('part', 'cart');
+
+  if (scanMode === 'part') {
+    scanTargetBox.classList.add('part');
+    scanModeText.innerText = '零件高精度模式：請對準 Toyota 貼紙條碼';
+  } else {
+    scanTargetBox.classList.add('cart');
+    scanModeText.innerText = '台車/箱籃高速模式：請對準中央綠線';
+  }
 
   try {
     const hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-      ZXing.BarcodeFormat.CODE_128,
-      ZXing.BarcodeFormat.CODE_39,
-      ZXing.BarcodeFormat.CODE_93,
-      ZXing.BarcodeFormat.EAN_13,
-      ZXing.BarcodeFormat.EAN_8,
-      ZXing.BarcodeFormat.UPC_A,
-      ZXing.BarcodeFormat.UPC_E,
-      ZXing.BarcodeFormat.ITF,
-      ZXing.BarcodeFormat.CODABAR
-    ]);
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
-    codeReader = new ZXing.BrowserMultiFormatReader(hints, 300);
+    if (scanMode === 'part') {
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+        ZXing.BarcodeFormat.CODE_128
+      ]);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    } else {
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+        ZXing.BarcodeFormat.CODE_128,
+        ZXing.BarcodeFormat.CODE_39,
+        ZXing.BarcodeFormat.CODE_93,
+        ZXing.BarcodeFormat.ITF,
+        ZXing.BarcodeFormat.CODABAR
+      ]);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, false);
+    }
+
+    codeReader = new ZXing.BrowserMultiFormatReader(hints, scanMode === 'part' ? 150 : 250);
 
     await codeReader.decodeFromVideoDevice(null, 'barcodeVideo', function(result) {
       if (!isScanning || !result) return;
 
-      const text = result.getText();
+      let text = normalizeScanText(result.getText());
+
+      if (!isValidScanText(text, scanMode)) {
+        showMsg('掃到不符合格式：' + text, 'orange');
+        return;
+      }
+
       document.getElementById(scanTarget).value = text;
 
+      if (navigator.vibrate) {
+        navigator.vibrate(120);
+      }
+
       showMsg('✅ 掃描完成：' + text, 'green');
+
       stopScan();
 
       setTimeout(() => moveNext(scanTarget), 150);
@@ -78,6 +127,29 @@ async function startScan(targetId, title) {
     showMsg('無法啟動相機，請確認權限或改用 Safari / Chrome 開啟', 'red');
     stopScan();
   }
+}
+
+function normalizeScanText(text) {
+  return String(text || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s/g, '')
+    .replace(/－/g, '-')
+    .replace(/—/g, '-');
+}
+
+function isValidScanText(text, mode) {
+  if (!text) return false;
+
+  if (mode === 'part') {
+    return partNoRegex.test(text);
+  }
+
+  if (mode === 'cart') {
+    return cartRegex.test(text);
+  }
+
+  return true;
 }
 
 function stopScan() {
@@ -211,7 +283,12 @@ function resetForm() {
 function showMsg(text, color) {
   const msg = document.getElementById('msg');
   msg.innerText = text;
-  msg.style.color = color || '#1f2a44';
+
+  if (color === 'red') msg.style.color = '#dc2626';
+  else if (color === 'green') msg.style.color = '#16a34a';
+  else if (color === 'orange') msg.style.color = '#ea580c';
+  else msg.style.color = '#1f2a44';
 }
 
 window.addEventListener('pagehide', stopScan);
+
