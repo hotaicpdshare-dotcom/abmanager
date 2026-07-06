@@ -42,7 +42,14 @@
         <label># 數量 <b>*</b></label>
         <div class="qty-row">
           <button type="button" onclick="changeQty(-1)">−</button>
-          <div id="qtyDisplay">1</div>
+          <input
+            id="qtyInput"
+            type="number"
+            inputmode="numeric"
+            min="1"
+            value="1"
+            onchange="setQtyFromInput()"
+          >
           <button type="button" onclick="changeQty(1)">＋</button>
         </div>
       </div>
