@@ -1,1 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>異常區登錄</title>
 
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+</head>
+
+<body>
+  <main class="app">
+    <section class="card">
+      <h1><span>!</span>異常區登錄</h1>
+
+      <div class="field">
+        <label>◇ 商品別</label>
+        <input id="productType" placeholder="選填">
+      </div>
+
+      <div class="field">
+        <label>▣ 零件號碼 <b>*</b></label>
+        <div class="scan-row">
+          <input id="partNo" placeholder="輸入或掃描">
+          <button onclick="startScan('partNo', '掃描零件條碼')">掃</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label># 數量 <b>*</b></label>
+        <div class="qty-row">
+          <button onclick="changeQty(-1)">−</button>
+          <div id="qtyDisplay">1</div>
+          <button onclick="changeQty(1)">＋</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>※ 說明 <b>*</b></label>
+        <div class="reason-grid">
+          <button onclick="selectReason(this,'儲位放不下')">儲位放不下</button>
+          <button onclick="selectReason(this,'實際數量>應上架數量')">實際數量 &gt; 應上架數量</button>
+          <button onclick="selectReason(this,'系統顯示無庫位')">系統顯示無庫位</button>
+          <button onclick="selectReason(this,'儲位遺留')">儲位遺留</button>
+          <button onclick="selectReason(this,'上架完多的')">上架完多的</button>
+          <button onclick="selectReason(this,'其他待處理')">其他待處理</button>
+          <button onclick="selectReason(this,'確認溢品')">確認溢品</button>
+        </div>
+      </div>
+
+      <div id="inboundCartBlock" class="field">
+        <label>▤ 上架台車號 <b>*</b></label>
+        <div class="scan-row">
+          <input id="inboundCart" placeholder="輸入或掃描">
+          <button onclick="startScan('inboundCart', '掃描上架台車號')">掃</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label id="placeLabel">▥ 放置台車/箱籃 <b>*</b></label>
+        <div class="scan-row">
+          <input id="placeCart" placeholder="輸入或掃描">
+          <button onclick="startScan('placeCart', '掃描放置位置')">掃</button>
+        </div>
+      </div>
+
+      <div id="msg" class="msg"></div>
+
+      <button id="submitBtn" class="submit" onclick="submitData()">送 出</button>
+    </section>
+  </main>
+
+  <div id="scannerModal" class="scanner hidden">
+    <div class="scanner-box">
+      <h2 id="scannerTitle">掃描條碼</h2>
+      <div class="video-box">
+        <video id="barcodeVideo" playsinline muted></video>
+        <div class="scan-line"></div>
+      </div>
+      <p>請讓一維條碼橫向對準綠線</p>
+      <button onclick="stopScan()">取消掃描</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
