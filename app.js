@@ -339,4 +339,13 @@ window.selectReason = selectReason;
 window.submitData = submitData;
 window.setQty = setQty;
 
+window.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('#productType,#partNo,#inboundCart,#placeCart')
+    .forEach(el => {
+      el.addEventListener('input', function () {
+        this.value = this.value.toUpperCase();
+      });
+    });
+});
+
 console.log('app.js loaded v10');
