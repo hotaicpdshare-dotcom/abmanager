@@ -41,9 +41,8 @@ function startPartScan() {
   startScan('partNo', '掃描零件條碼');
 }
 
-function startPartScan() {
-  alert('掃描按鈕有觸發');
-  startScan('partNo', '掃描零件條碼');
+function startCartScan(targetId, title) {
+  startScan(targetId, title);
 }
 
 async function startScan(targetId, title) {
@@ -62,18 +61,15 @@ async function startScan(targetId, title) {
     await codeReader.decodeFromVideoDevice(
       null,
       'barcodeVideo',
-      function(result, err) {
+      function(result) {
         if (!isScanning || !result) return;
 
-        const text = normalizeScanText(result.getText());
-
+        const text = normalizeText(result.getText());
         if (!text) return;
 
         document.getElementById(scanTarget).value = text;
 
-        if (navigator.vibrate) {
-          navigator.vibrate(120);
-        }
+        if (navigator.vibrate) navigator.vibrate(120);
 
         showMsg('✅ 掃描完成：' + text, 'green');
 
@@ -87,15 +83,6 @@ async function startScan(targetId, title) {
     showMsg('無法啟動相機，請確認權限或改用 Safari / Chrome 開啟', 'red');
     stopScan();
   }
-}
-
-function normalizeScanText(text) {
-  return String(text || '')
-    .trim()
-    .toUpperCase()
-    .replace(/\s/g, '')
-    .replace(/－/g, '-')
-    .replace(/—/g, '-');
 }
 
 function stopScan() {
@@ -116,6 +103,98 @@ function stopScan() {
     video.srcObject.getTracks().forEach(t => t.stop());
     video.srcObject = null;
   }
+}
+
+function startPartOcr() {
+  const input = document.getElementById('ocrImageInput');
+  input.value = '';
+  input.click();
+}
+
+async function handlePartOcrImage(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  showMsg('辨識中，請稍候...', '#1f2a44');
+
+  try {
+    const result = await Tesseract.recognize(file, 'eng', {
+      logger: function(m) {
+        if (m.status === 'recognizing text') {
+          const percent = Math.round((m.progress || 0) * 100);
+          showMsg('辨識中 ' + percent + '%', '#1f2a44');
+        }
+      }
+    });
+
+    const rawText = result.data.text || '';
+    const partNo = extractToyotaPartNo(rawText);
+
+    if (!partNo) {
+      showMsg('找不到零件號碼，請重拍貼紙大字', 'red');
+      return;
+    }
+
+    document.getElementById('partNo').value = partNo;
+
+    if (navigator.vibrate) navigator.vibrate(120);
+
+    showMsg('✅ 已辨識：' + partNo, 'green');
+
+    setTimeout(() => moveNext('partNo'), 150);
+
+  } catch (err) {
+    showMsg('OCR辨識失敗，請重新拍照', 'red');
+  }
+}
+
+function extractToyotaPartNo(text) {
+  const cleaned = String(text || '')
+    .toUpperCase()
+    .replace(/[－—–]/g, '-')
+    .replace(/\s+/g, '');
+
+  const candidates = cleaned.match(/[0-9A-Z]{5}-?[0-9A-Z]{5}/g);
+
+  if (!candidates || !candidates.length) return '';
+
+  for (let c of candidates) {
+    c = c.replace('-', '');
+
+    let first = c.slice(0, 5);
+    let second = c.slice(5, 10);
+
+    first = first
+      .replace(/O/g, '0')
+      .replace(/I/g, '1')
+      .replace(/L/g, '1')
+      .replace(/S/g, '5')
+      .replace(/B/g, '8');
+
+    second =
+      second.charAt(0)
+        .replace(/O/g, '0')
+        .replace(/I/g, '1')
+        .replace(/L/g, '1') +
+      second.slice(1);
+
+    const fixed = first + '-' + second;
+
+    if (/^[0-9]{5}-[0-9A-Z]{5}$/.test(fixed)) {
+      return fixed;
+    }
+  }
+
+  return '';
+}
+
+function normalizeText(text) {
+  return String(text || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s/g, '')
+    .replace(/－/g, '-')
+    .replace(/—/g, '-');
 }
 
 function moveNext(id) {
@@ -239,16 +318,18 @@ function showMsg(text, color) {
   if (color === 'red') msg.style.color = '#dc2626';
   else if (color === 'green') msg.style.color = '#16a34a';
   else if (color === 'orange') msg.style.color = '#ea580c';
-  else msg.style.color = '#1f2a44';
+  else msg.style.color = color || '#1f2a44';
 }
 
 window.addEventListener('pagehide', stopScan);
 
 window.startPartScan = startPartScan;
 window.startCartScan = startCartScan;
+window.startPartOcr = startPartOcr;
+window.handlePartOcrImage = handlePartOcrImage;
 window.stopScan = stopScan;
 window.changeQty = changeQty;
 window.selectReason = selectReason;
 window.submitData = submitData;
 
-console.log('app.js loaded v5');
+console.log('app.js loaded v7');
