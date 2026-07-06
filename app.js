@@ -5,12 +5,8 @@ let selectedReason = '';
 let codeReader = null;
 let scanTarget = '';
 let isScanning = false;
-let scanMode = 'cart';
 
 const noInboundCartReasons = ['儲位遺留', '其他待處理', '確認溢品'];
-
-//const partNoRegex = /^[0-9A-Z\-]{5,20}$/;
-//const cartRegex = /^(HCA|VA|AS|M)-?[0-9A-Z]{3,5}$/;
 
 function changeQty(delta) {
   qty += delta;
@@ -35,101 +31,56 @@ function selectReason(btn, reason) {
     inboundBlock.classList.remove('hidden');
   }
 
-  if (reason === '儲位遺留') {
-    placeLabel.innerHTML = '▥ 遺留儲位 <b>*</b>';
-  } else {
-    placeLabel.innerHTML = '▥ 放置台車/箱籃 <b>*</b>';
-  }
+  placeLabel.innerHTML =
+    reason === '儲位遺留'
+      ? '▥ 遺留儲位 <b>*</b>'
+      : '▥ 放置台車/箱籃 <b>*</b>';
 }
 
 function startPartScan() {
-  startScan({
-    targetId: 'partNo',
-    title: '掃描零件條碼',
-    mode: 'part'
-  });
+  startScan('partNo', '掃描零件條碼');
 }
 
 function startCartScan(targetId, title) {
-  startScan({
-    targetId,
-    title,
-    mode: 'cart'
-  });
+  startScan(targetId, title);
 }
 
-async function startScan(config) {
-  scanTarget = config.targetId;
-  scanMode = config.mode;
+async function startScan(targetId, title) {
+  scanTarget = targetId;
   isScanning = true;
 
-  document.getElementById('scannerTitle').innerText = config.title;
+  document.getElementById('scannerTitle').innerText = title || '掃描條碼';
   document.getElementById('scannerModal').classList.remove('hidden');
 
-  const scanTargetBox = document.getElementById('scanTargetBox');
   const scanModeText = document.getElementById('scanMode');
-
-  scanTargetBox.classList.remove('part', 'cart');
-
-  if (scanMode === 'part') {
-    scanTargetBox.classList.add('part');
-    scanModeText.innerText = '零件高精度模式：請對準 Toyota 貼紙條碼';
-  } else {
-    scanTargetBox.classList.add('cart');
-    scanModeText.innerText = '台車/箱籃高速模式：請對準中央綠線';
-  }
+  if (scanModeText) scanModeText.innerText = '請將條碼對準中央綠線';
 
   try {
-    const hints = new Map();
+    codeReader = new ZXing.BrowserMultiFormatReader();
 
-    if (scanMode === 'part') {
-        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-          ZXing.BarcodeFormat.CODE_128,
-          ZXing.BarcodeFormat.CODE_39,
-          ZXing.BarcodeFormat.CODE_93,
-          ZXing.BarcodeFormat.EAN_13,
-          ZXing.BarcodeFormat.EAN_8,
-          ZXing.BarcodeFormat.UPC_A,
-          ZXing.BarcodeFormat.UPC_E,
-          ZXing.BarcodeFormat.ITF,
-          ZXing.BarcodeFormat.CODABAR
-        ]);
-        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-      } else {
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.CODE_128,
-        ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.CODE_93,
-        ZXing.BarcodeFormat.ITF,
-        ZXing.BarcodeFormat.CODABAR
-      ]);
-      hints.set(ZXing.DecodeHintType.TRY_HARDER, false);
-    }
+    await codeReader.decodeFromVideoDevice(
+      null,
+      'barcodeVideo',
+      function(result, err) {
+        if (!isScanning || !result) return;
 
-    codeReader = new ZXing.BrowserMultiFormatReader(hints, scanMode === 'part' ? 150 : 250);
+        const text = normalizeScanText(result.getText());
 
-    await codeReader.decodeFromVideoDevice(null, 'barcodeVideo', function(result) {
-      if (!isScanning || !result) return;
+        if (!text) return;
 
-      let text = normalizeScanText(result.getText());
+        document.getElementById(scanTarget).value = text;
 
-      if (!isValidScanText(text, scanMode)) {
-        showMsg('掃到不符合格式：' + text, 'orange');
-        return;
+        if (navigator.vibrate) {
+          navigator.vibrate(120);
+        }
+
+        showMsg('✅ 掃描完成：' + text, 'green');
+
+        stopScan();
+
+        setTimeout(() => moveNext(scanTarget), 150);
       }
-
-      document.getElementById(scanTarget).value = text;
-
-      if (navigator.vibrate) {
-        navigator.vibrate(120);
-      }
-
-      showMsg('✅ 掃描完成：' + text, 'green');
-
-      stopScan();
-
-      setTimeout(() => moveNext(scanTarget), 150);
-    });
+    );
 
   } catch (err) {
     showMsg('無法啟動相機，請確認權限或改用 Safari / Chrome 開啟', 'red');
@@ -146,10 +97,6 @@ function normalizeScanText(text) {
     .replace(/—/g, '-');
 }
 
-function isValidScanText(text, mode) {
-  return !!text;
-}
-
 function stopScan() {
   isScanning = false;
   document.getElementById('scannerModal').classList.add('hidden');
@@ -159,7 +106,9 @@ function stopScan() {
       codeReader.reset();
       codeReader = null;
     }
-  } catch (e) {}
+  } catch (e) {
+    codeReader = null;
+  }
 
   const video = document.getElementById('barcodeVideo');
   if (video && video.srcObject) {
@@ -196,7 +145,9 @@ function submitData() {
 
   if (!form.partNo) return showMsg('請輸入零件號碼', 'red');
   if (!form.reason) return showMsg('請選擇說明', 'red');
-  if (!noInboundCartReasons.includes(form.reason) && !form.inboundCart) return showMsg('請輸入上架台車號', 'red');
+  if (!noInboundCartReasons.includes(form.reason) && !form.inboundCart) {
+    return showMsg('請輸入上架台車號', 'red');
+  }
   if (!form.placeCart) return showMsg('請輸入放置位置', 'red');
 
   btn.disabled = true;
@@ -205,7 +156,6 @@ function submitData() {
   submitJsonp(form)
     .then(res => {
       if (!res.success) throw new Error(res.message);
-
       showMsg('✅ 已送出 ' + res.seqNo, 'green');
       resetForm();
     })
@@ -240,6 +190,7 @@ function submitJsonp(form) {
 
     const script = document.createElement('script');
     script.src = GAS_URL + '?' + params.toString();
+
     script.onerror = function() {
       reject(new Error('無法連線到 GAS API'));
       cleanup();
@@ -275,7 +226,9 @@ function resetForm() {
   document.getElementById('inboundCartBlock').classList.remove('hidden');
   document.getElementById('placeLabel').innerHTML = '▥ 放置台車/箱籃 <b>*</b>';
 
-  setTimeout(() => document.getElementById('partNo').focus(), 200);
+  setTimeout(() => {
+    document.getElementById('partNo').focus();
+  }, 200);
 }
 
 function showMsg(text, color) {
@@ -297,4 +250,4 @@ window.changeQty = changeQty;
 window.selectReason = selectReason;
 window.submitData = submitData;
 
-console.log('app.js loaded v3');
+console.log('app.js loaded v5');
