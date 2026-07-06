@@ -22,10 +22,13 @@
 
       <div class="field">
         <label>▣ 零件號碼 <b>*</b></label>
-        <div class="scan-row part-row">
+        <div class="part-input-block">
           <input id="partNo" placeholder="輸入或掃描">
-          <button type="button" onclick="startPartOcr()">拍字</button>
-          <button type="button" onclick="startPartScan()">條碼</button>
+        
+          <div class="part-button-row">
+            <button type="button" onclick="startPartOcr()">字</button>
+            <button type="button" onclick="startPartScan()">碼</button>
+          </div>
         </div>
 
         <input
