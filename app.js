@@ -1,4 +1,4 @@
-const GAS_URL = '貼上你的 GAS Web App /exec 網址';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEErIRp9P_MwzrVIB3zwVZMKI3levuM6TQ-ZAVORHuYgfQPLtixUUbhizvHeHLFWEa/exec';
 
 let qty = 1;
 let selectedReason = '';
