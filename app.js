@@ -11,19 +11,7 @@ const noInboundCartReasons = ['儲位遺留', '其他待處理', '確認溢品']
 function changeQty(delta) {
   qty += delta;
   if (qty < 1) qty = 1;
-  document.getElementById('qtyInput').value = qty;
-}
-
-function setQtyFromInput() {
-  const value = parseInt(document.getElementById('qtyInput').value, 10);
-
-  if (!value || value < 1) {
-    qty = 1;
-  } else {
-    qty = value;
-  }
-
-  document.getElementById('qtyInput').value = qty;
+  document.getElementById('qtyDisplay').innerText = qty;
 }
 
 function selectReason(btn, reason) {
@@ -311,7 +299,7 @@ function resetForm() {
   qty = 1;
   selectedReason = '';
 
-  document.getElementById('qtyInput').value = '1';
+  document.getElementById('qtyDisplay').innerText = '1';
 
   document.querySelectorAll('.reason-grid button').forEach(b => b.classList.remove('active'));
 
@@ -343,5 +331,5 @@ window.stopScan = stopScan;
 window.changeQty = changeQty;
 window.selectReason = selectReason;
 window.submitData = submitData;
-window.setQtyFromInput = setQtyFromInput;
 
+console.log('app.js loaded v7');
