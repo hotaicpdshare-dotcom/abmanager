@@ -23,7 +23,7 @@
         <label>▣ 零件號碼 <b>*</b></label>
         <div class="scan-row">
           <input id="partNo" placeholder="輸入或掃描">
-          <button onclick="startScan('partNo', '掃描零件條碼')">掃</button>
+          <button onclick="startPartScan()">掃</button>
         </div>
       </div>
 
@@ -53,7 +53,7 @@
         <label>▤ 上架台車號 <b>*</b></label>
         <div class="scan-row">
           <input id="inboundCart" placeholder="輸入或掃描">
-          <button onclick="startScan('inboundCart', '掃描上架台車號')">掃</button>
+          <button onclick="startCartScan('inboundCart', '掃描上架台車號')">掃</button>
         </div>
       </div>
 
@@ -61,7 +61,7 @@
         <label id="placeLabel">▥ 放置台車/箱籃 <b>*</b></label>
         <div class="scan-row">
           <input id="placeCart" placeholder="輸入或掃描">
-          <button onclick="startScan('placeCart', '掃描放置位置')">掃</button>
+          <button onclick="startCartScan('placeCart', '掃描放置位置')">掃</button>
         </div>
       </div>
 
