@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>異常區登錄</title>
 
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=7">
   <script src="https://unpkg.com/@zxing/library@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
@@ -22,31 +22,41 @@
 
       <div class="field">
         <label>▣ 零件號碼 <b>*</b></label>
-        <div class="scan-row">
+        <div class="scan-row part-row">
           <input id="partNo" placeholder="輸入或掃描">
-          <button type="button" onclick="startPartScan()">掃</button>
+          <button type="button" onclick="startPartOcr()">拍字</button>
+          <button type="button" onclick="startPartScan()">條碼</button>
         </div>
+
+        <input
+          id="ocrImageInput"
+          class="hidden"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onchange="handlePartOcrImage(event)"
+        >
       </div>
 
       <div class="field">
         <label># 數量 <b>*</b></label>
         <div class="qty-row">
-          <button onclick="changeQty(-1)">−</button>
+          <button type="button" onclick="changeQty(-1)">−</button>
           <div id="qtyDisplay">1</div>
-          <button onclick="changeQty(1)">＋</button>
+          <button type="button" onclick="changeQty(1)">＋</button>
         </div>
       </div>
 
       <div class="field">
         <label>※ 說明 <b>*</b></label>
         <div class="reason-grid">
-          <button onclick="selectReason(this,'儲位放不下')">儲位放不下</button>
-          <button onclick="selectReason(this,'實際數量>應上架數量')">實際數量 &gt; 應上架數量</button>
-          <button onclick="selectReason(this,'系統顯示無庫位')">系統顯示無庫位</button>
-          <button onclick="selectReason(this,'儲位遺留')">儲位遺留</button>
-          <button onclick="selectReason(this,'上架完多的')">上架完多的</button>
-          <button onclick="selectReason(this,'其他待處理')">其他待處理</button>
-          <button onclick="selectReason(this,'確認溢品')">確認溢品</button>
+          <button type="button" onclick="selectReason(this,'儲位放不下')">儲位放不下</button>
+          <button type="button" onclick="selectReason(this,'實際數量>應上架數量')">實際數量 &gt; 應上架數量</button>
+          <button type="button" onclick="selectReason(this,'系統顯示無庫位')">系統顯示無庫位</button>
+          <button type="button" onclick="selectReason(this,'儲位遺留')">儲位遺留</button>
+          <button type="button" onclick="selectReason(this,'上架完多的')">上架完多的</button>
+          <button type="button" onclick="selectReason(this,'其他待處理')">其他待處理</button>
+          <button type="button" onclick="selectReason(this,'確認溢品')">確認溢品</button>
         </div>
       </div>
 
@@ -68,7 +78,7 @@
 
       <div id="msg" class="msg"></div>
 
-      <button id="submitBtn" class="submit" onclick="submitData()">送 出</button>
+      <button id="submitBtn" class="submit" type="button" onclick="submitData()">送 出</button>
     </section>
   </main>
 
@@ -79,13 +89,13 @@
         <video id="barcodeVideo" playsinline muted></video>
         <div id="scanTargetBox" class="scan-target-box cart"></div>
         <div class="scan-line"></div>
-        <div id="scanMode" class="scan-mode">高速條碼模式</div>
+        <div id="scanMode" class="scan-mode">請將條碼對準中央綠線</div>
       </div>
       <p>請讓一維條碼橫向對準綠線</p>
-      <button onclick="stopScan()">取消掃描</button>
+      <button type="button" onclick="stopScan()">取消掃描</button>
     </div>
   </div>
 
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
