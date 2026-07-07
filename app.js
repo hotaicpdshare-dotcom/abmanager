@@ -348,4 +348,4 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-console.log('app.js loaded v10');
+console.log('app.js loaded v11');
