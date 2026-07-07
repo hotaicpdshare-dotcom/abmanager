@@ -37,13 +37,10 @@ function selectReason(btn, reason) {
     inboundBlock.classList.remove('hidden');
   }
 
-  if (reason === '儲位遺留') {
-        placeLabel.innerHTML = '▥ 遺留儲位 <b>*</b>';
-      } else if (reason === '地上撿到') {
-        placeLabel.innerHTML = '▥ 撿到地點 <b>*</b>';
-      } else {
-        placeLabel.innerHTML = '▥ 放置台車/箱籃 <b>*</b>';
-      }
+  placeLabel.innerHTML =
+    reason === '儲位遺留'
+      ? '▥ 遺留儲位 <b>*</b>'
+      : '▥ 放置台車/箱籃 <b>*</b>';
 }
 
 function startPartScan() {
