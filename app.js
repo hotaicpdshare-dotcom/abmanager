@@ -6,7 +6,7 @@ let codeReader = null;
 let scanTarget = '';
 let isScanning = false;
 
-const noInboundCartReasons = ['儲位遺留', '其他待處理', '確認溢品'];
+const noInboundCartReasons = ['儲位遺留', '其他待處理', '確認溢品', '地上撿到'];
 
 function changeQty(delta) {
   qty += delta;
