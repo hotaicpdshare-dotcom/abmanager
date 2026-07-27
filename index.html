@@ -1,134 +1,253 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>異常管理.</title>
-
-  <link rel="stylesheet" href="style.css?v=11">
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <meta name="theme-color" content="#1261a6">
+  <title>異常案件小工具</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-  <main class="app">
-    <section class="card">
-      <h1><span>!</span>異常區登錄</h1>
-
-      <div class="field">
-        <label>◇ 商品別</label>
-        <input
-          id="productType"
-          type="text"
-          inputmode="latin"
-          autocapitalize="characters"
-          autocomplete="off"
-          autocorrect="off"
-          spellcheck="false">
+  <main class="app-shell">
+    <header class="topbar">
+      <button id="backButton" class="icon-button is-hidden" type="button" aria-label="返回">←</button>
+      <div id="brandMark" class="brand-mark" aria-hidden="true">!</div>
+      <div class="topbar-copy">
+        <small>異常案件小工具</small>
+        <strong id="pageTitle">案件作業入口</strong>
       </div>
+      <button id="homeButton" class="icon-button" type="button" aria-label="回首頁">⌂</button>
+    </header>
 
-      <div class="field">
-        <label>▣ 零件號碼 <b>*</b></label>
-        <div class="part-input-block">
-          <input
-            id="partNo"
-            type="text"
-            inputmode="latin"
-            autocapitalize="characters"
-            autocomplete="off"
-            autocorrect="off"
-            spellcheck="false"
-            placeholder="輸入或掃描">
-        
-          <div class="part-button-row">
-            <button type="button" onclick="startPartOcr()">📷 拍照辨識</button>
-            <button type="button" onclick="startPartScan()">▣ 掃描條碼</button>
+    <div class="location-banner">
+      <span aria-hidden="true">●</span>
+      <div>
+        <small>目前位置</small>
+        <strong id="currentZone">異常待確認台車－B層</strong>
+      </div>
+      <em>QR 已辨識</em>
+    </div>
+
+    <section id="view-home" class="view is-active">
+      <p class="kicker">請選擇本次作業</p>
+      <h1>你現在要做什麼？</h1>
+      <p class="lead">異常放置區塊已由 QR Code 帶入，不需要再次輸入。</p>
+
+      <button id="openCreate" class="action-card primary" type="button">
+        <span class="action-icon">＋</span>
+        <span><strong>新增異常案件</strong><small>通報目前在異常區發現的零件</small></span>
+        <b>→</b>
+      </button>
+      <button id="openLogin" class="action-card" type="button">
+        <span class="action-icon secondary">✓</span>
+        <span><strong>處理／更新案件</strong><small>承接任務、記錄進度或完成結案</small></span>
+        <b>→</b>
+      </button>
+      <button id="openShelvingLogin" class="action-card shelving" type="button">
+        <span class="action-icon shelving-icon">↥</span>
+        <span><strong>我要上架</strong><small>認領已完成丈量或系統修正的零件</small></span>
+        <b>→</b>
+      </button>
+    </section>
+
+    <section id="view-create" class="view">
+      <p class="kicker">現場通報</p>
+      <h1>新增異常案件</h1>
+
+      <form id="createForm" novalidate>
+        <div class="auto-field">
+          <span><strong>異常放置區塊</strong><small>由 QR Code 自動帶入</small></span>
+          <b id="formZone"></b>
+        </div>
+
+        <label class="field">
+          <span>商品別</span>
+          <small>選填；有標示商品別時再輸入</small>
+          <input id="productType" name="productType" autocomplete="off" autocapitalize="characters" placeholder="例如：一般零件、鈑金">
+        </label>
+
+        <label class="field">
+          <span>零件件號 <b>*</b></span>
+          <small>掃描零件條碼，或直接輸入件號</small>
+          <input id="partNo" name="partNo" required autocomplete="off" autocapitalize="characters" placeholder="例如：12345-ABCDE">
+        </label>
+
+        <div class="field">
+          <span>異常零件數量 <b>*</b></span>
+          <small>目前實際放置於異常區的數量</small>
+          <div class="quantity-control">
+            <button id="qtyMinus" type="button">−</button>
+            <input id="qty" name="qty" type="number" inputmode="numeric" min="1" value="1" required>
+            <button id="qtyPlus" type="button">＋</button>
           </div>
         </div>
 
-        <input
-          id="ocrImageInput"
-          class="hidden"
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onchange="handlePartOcrImage(event)"
-        >
-      </div>
+        <label class="field">
+          <span>現場異常情況 <b>*</b></span>
+          <small>只選擇現場直接觀察到的情況</small>
+          <select id="situation" name="situation" required>
+            <option value="">請選擇現場情況</option>
+            <option>上架完仍有剩餘</option>
+            <option>儲位遺留</option>
+            <option>地上撿到</option>
+            <option>指定儲位放不下</option>
+            <option>系統顯示無庫位</option>
+          </select>
+        </label>
 
-      <div class="field">
-        <label># 數量 <b>*</b></label>
-        <div class="qty-row">
-          <button type="button" onclick="changeQty(-1)">−</button>
-          <input id="qtyDisplay" type="number" value="1" min="1" inputmode="numeric" onchange="setQty(this.value)">
-          <button type="button" onclick="changeQty(1)">＋</button>
+        <label id="originalCartField" class="field conditional is-hidden">
+          <span>原上架台車號 <b>*</b></span>
+          <small>零件原本隨哪一台車進行上架</small>
+          <input id="originalCart" name="originalCart" autocomplete="off" autocapitalize="characters" placeholder="掃描或輸入原上架台車號">
+        </label>
+
+        <label class="field">
+          <span>補充說明</span>
+          <small>選填；記錄貼紙、外觀或其他現場資訊</small>
+          <textarea id="note" name="note" rows="3" placeholder="輸入補充說明…"></textarea>
+        </label>
+
+        <div id="createError" class="message error is-hidden"></div>
+        <div class="button-row">
+          <button class="button ghost" data-go-home type="button">取消</button>
+          <button id="createSubmit" class="button primary" type="submit">建立案件</button>
         </div>
+      </form>
+    </section>
+
+    <section id="view-success" class="view center">
+      <div class="success-mark">✓</div>
+      <p class="kicker">新增成功</p>
+      <h1>異常案件已建立</h1>
+      <p class="lead">案件已進入待處理清單，處理人員可立即承接。</p>
+      <div class="ticket">
+        <small>案件編號</small>
+        <strong id="successCaseNo"></strong>
+        <span>處理階段：待處理</span>
+        <span>最終處理方式：尚未選擇</span>
+      </div>
+      <button class="button primary wide" data-go-home type="button">回到作業入口</button>
+      <button id="createAnother" class="text-button" type="button">繼續新增下一件</button>
+    </section>
+
+    <section id="view-login" class="view">
+      <div class="center">
+        <div class="id-mark">ID</div>
+        <p class="kicker">處理人員身分確認</p>
+        <h1>先輸入工號</h1>
+        <p class="lead">系統會從 EMPLOYEE 分頁帶出姓名與單位。</p>
+      </div>
+      <form id="loginForm" novalidate>
+        <label class="field">
+          <span>工號 <b>*</b></span>
+          <small>請輸入或掃描識別證</small>
+          <input id="employeeId" name="employeeId" required autocomplete="off" autocapitalize="characters">
+        </label>
+        <div id="loginError" class="message error is-hidden"></div>
+        <button id="loginSubmit" class="button primary wide" type="submit">進入案件清單</button>
+      </form>
+    </section>
+
+    <section id="view-list" class="view">
+      <div class="person-strip">
+        <span id="employeeAvatar">人</span>
+        <div><small>目前處理人員</small><strong id="employeeName"></strong><p id="employeeMeta"></p></div>
+        <button id="switchEmployee" type="button">切換</button>
       </div>
 
-      <div class="field">
-        <label>※ 說明 <b>*</b></label>
-        <div class="reason-grid">
-          <button type="button" onclick="selectReason(this,'儲位放不下')">儲位放不下</button>
-          <button type="button" onclick="selectReason(this,'儲位遺留')">儲位遺留</button>
-          <button type="button" onclick="selectReason(this,'上架完多的')">上架完多的</button>
-          <button type="button" onclick="selectReason(this,'地上撿到')">地上撿到</button>
-          <button type="button" onclick="selectReason(this,'實際數量>應上架數量')">實際數量 &gt; 應上架數量</button>
-          <button type="button" onclick="selectReason(this,'系統顯示無庫位')">系統顯示無庫位</button>
-          <button type="button" onclick="selectReason(this,'其他待處理')">其他待處理</button>
-          <button type="button" onclick="selectReason(this,'確認溢品')">確認溢品</button>
-        </div>
+      <div class="section-heading">
+        <div><p class="kicker">我的任務</p><h1>我的處理中案件</h1></div>
+        <b id="myCaseCount">0</b>
+      </div>
+      <div id="myCases" class="case-list"></div>
+
+      <div class="divider"></div>
+      <div class="section-heading"><div><p class="kicker">待承接</p><h1>查找案件</h1></div></div>
+      <p class="lead small">預設顯示目前區塊，也可輸入零件件號或案件編號。</p>
+      <input id="caseSearch" class="search-input" autocomplete="off" autocapitalize="characters" placeholder="搜尋零件件號或案件編號">
+      <button id="searchButton" class="button primary wide" type="button">查找案件</button>
+      <div id="availableCases" class="case-list"></div>
+    </section>
+
+    <section id="view-shelving-login" class="view">
+      <div class="center">
+        <div class="id-mark shelving-mark">↥</div>
+        <p class="kicker">上架人員身分確認</p>
+        <h1>我要上架</h1>
+        <p class="lead">輸入工號後，系統會顯示所有樓層尚待完成上架的零件。</p>
+      </div>
+      <form id="shelvingLoginForm" novalidate>
+        <label class="field">
+          <span>工號 <b>*</b></span>
+          <small>請輸入或掃描識別證</small>
+          <input id="shelvingEmployeeId" name="employeeId" required autocomplete="off" autocapitalize="characters">
+        </label>
+        <div id="shelvingLoginError" class="message error is-hidden"></div>
+        <button id="shelvingLoginSubmit" class="button shelving wide" type="submit">查看待上架清單</button>
+      </form>
+    </section>
+
+    <section id="view-shelving-list" class="view">
+      <div class="person-strip shelving-person">
+        <span id="shelvingEmployeeAvatar">人</span>
+        <div><small>目前上架人員</small><strong id="shelvingEmployeeName"></strong><p id="shelvingEmployeeMeta"></p></div>
+        <button id="switchShelvingEmployee" type="button">切換</button>
       </div>
 
-      <div id="inboundCartBlock" class="field">
-        <label>▤ 上架台車號 <b>*</b></label>
-        <div class="scan-row">
-         <input
-            id="inboundCart"
-            type="text"
-            inputmode="latin"
-            autocapitalize="characters"
-            autocomplete="off"
-            autocorrect="off"
-            spellcheck="false">
-          <button type="button" onclick="startCartScan('inboundCart', '掃描上架台車號')">掃</button>
-        </div>
+      <div class="section-heading">
+        <div><p class="kicker">不分樓層・全部列出</p><h1>待上架清單</h1></div>
+        <b id="shelvingCount">0</b>
       </div>
+      <p class="lead small">僅顯示最終處理方式為「重新丈量」或「請資訊部修正異常系統資料」，且尚未完成上架的案件。</p>
+      <div id="shelvingMessage" class="message is-hidden"></div>
+      <div id="shelvingCases" class="case-list shelving-list"></div>
+      <button id="refreshShelving" class="button ghost wide refresh-button" type="button">重新整理</button>
+    </section>
 
-      <div class="field">
-        <label id="placeLabel">▥ 放置台車/箱籃 <b>*</b></label>
-        <div class="scan-row">
-          <input
-            id="placeCart"
-            type="text"
-            inputmode="latin"
-            autocapitalize="characters"
-            autocomplete="off"
-            autocorrect="off"
-            spellcheck="false">
-          <button type="button" onclick="startCartScan('placeCart', '掃描放置位置')">掃</button>
-        </div>
+    <section id="view-detail" class="view">
+      <div class="detail-heading">
+        <div><p class="kicker">案件編號</p><h1 id="detailCaseNo"></h1></div>
+        <span id="detailStage" class="status-chip"></span>
       </div>
+      <div id="detailMessage" class="message is-hidden"></div>
+      <div id="caseDetail"></div>
+      <button id="claimButton" class="button orange wide is-hidden" type="button">由我承接此案件</button>
 
-      <div id="msg" class="msg"></div>
-
-      <button id="submitBtn" class="submit" type="button" onclick="submitData()">送 出</button>
+      <form id="updateForm" class="panel is-hidden" novalidate>
+        <h2>更新案件進度</h2>
+        <label class="field">
+          <span>目前階段</span>
+          <select id="updateStage" name="stage">
+            <option>處理中</option>
+            <option>待確認</option>
+            <option>已結案</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>最終處理方式</span>
+          <small>結案前必須選擇實際採取的處理方式</small>
+          <select id="finalResolution" name="finalResolution">
+            <option value="">請選擇最終處理方式</option>
+            <option>零件放入儲位</option>
+            <option>重新丈量</option>
+            <option>確認溢品</option>
+            <option>請資訊部修正異常系統資料</option>
+          </select>
+        </label>
+        <label id="overflowLocationField" class="field conditional is-hidden">
+          <span>溢品放置區 <b>*</b></span>
+          <small>選擇「確認溢品」時，請記錄零件實際放置的位置</small>
+          <input id="overflowLocation" name="overflowLocation" autocomplete="off" autocapitalize="characters" placeholder="例如：溢品區 B-03">
+        </label>
+        <label class="field">
+          <span>本次處理紀錄</span>
+          <textarea id="updateNote" name="note" rows="3" placeholder="例如：已核對 WES 與實物數量…"></textarea>
+        </label>
+        <button id="updateSubmit" class="button primary wide" type="submit">儲存本次更新</button>
+      </form>
     </section>
   </main>
 
-  <div id="scannerModal" class="scanner hidden">
-    <div class="scanner-box">
-      <h2 id="scannerTitle">掃描條碼</h2>
-      <div class="video-box">
-        <video id="barcodeVideo" playsinline muted></video>
-        <div id="scanTargetBox" class="scan-target-box cart"></div>
-        <div class="scan-line"></div>
-        <div id="scanMode" class="scan-mode">請將條碼對準中央綠線</div>
-      </div>
-      <p>請讓一維條碼橫向對準綠線</p>
-      <button type="button" onclick="stopScan()">取消掃描</button>
-    </div>
-  </div>
-
-  <script src="app.js?v=11"></script>
+  <script src="app.js"></script>
 </body>
 </html>
