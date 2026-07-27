@@ -325,7 +325,9 @@ function renderCaseList(selector, cases, mine, emptyText) {
     <button class="case-card ${mine ? "mine" : ""}" type="button" data-case-no="${escapeAttr(item.caseNo)}">
       <span class="case-top">
         <strong>${escapeHtml(item.caseNo)}</strong>
-        <em class="status-chip">${escapeHtml(item.stage)}</em>
+        ${item.stage === "待處理"
+          ? ""
+          : `<em class="status-chip">${escapeHtml(item.stage)}</em>`}
       </span>
       <span class="case-part">${escapeHtml(item.partNo)} <small>數量：${escapeHtml(String(item.qty))}</small></span>
       <p>${escapeHtml(item.situation)}<br>層別：${escapeHtml(normalizeLayer(item.layer) || "未填")}</p>
@@ -362,7 +364,13 @@ function renderCaseDetail() {
   if (!item) return;
 
   $("#detailCaseNo").textContent = item.caseNo;
-  $("#detailStage").textContent = item.stage;
+  $("#detailStage").textContent =
+    item.stage === "待處理" ? "" : item.stage;
+  
+  $("#detailStage").classList.toggle(
+    "is-hidden",
+    item.stage === "待處理"
+  );
   $("#caseDetail").innerHTML = `
     <section class="detail-card important-detail">
       <div class="task-primary-grid">
