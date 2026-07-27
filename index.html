@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1261a6">
   <title>異常案件小工具</title>
-  <link rel="stylesheet" href="style.css?v=20260727-4">
+  <link rel="stylesheet" href="style.css?v=20260727-5">
 </head>
 <body>
   <main class="app-shell">
@@ -19,23 +19,14 @@
       <button id="homeButton" class="icon-button" type="button" aria-label="回首頁">⌂</button>
     </header>
 
-    <div class="location-banner">
-      <span aria-hidden="true">●</span>
-      <div>
-        <small>目前位置</small>
-        <strong id="currentZone">異常待確認台車－B層</strong>
-      </div>
-      <em>QR 已辨識</em>
-    </div>
-
     <section id="view-home" class="view is-active">
       <p class="kicker">請選擇本次作業</p>
       <h1>你現在要做什麼？</h1>
-      <p class="lead">異常放置區塊已由 QR Code 帶入，不需要再次輸入。</p>
+      <p class="lead">請依本次工作選擇新增、處理或完成上架。</p>
 
       <button id="openCreate" class="action-card primary" type="button">
         <span class="action-icon">＋</span>
-        <span><strong>新增異常案件</strong><small>通報目前在異常區發現的零件</small></span>
+        <span><strong>新增異常案件</strong><small>選擇上／中／下層並通報異常零件</small></span>
         <b>→</b>
       </button>
       <button id="openLogin" class="action-card" type="button">
@@ -55,10 +46,16 @@
       <h1>新增異常案件</h1>
 
       <form id="createForm" novalidate>
-        <div class="auto-field">
-          <span><strong>異常放置區塊</strong><small>由 QR Code 自動帶入</small></span>
-          <b id="formZone"></b>
-        </div>
+        <label class="field layer-field">
+          <span>異常所在層 <b>*</b></span>
+          <small>請選擇異常零件實際所在的層別</small>
+          <select id="createLayer" name="layer" required>
+            <option value="">請選擇層別</option>
+            <option value="上">上</option>
+            <option value="中">中</option>
+            <option value="下">下</option>
+          </select>
+        </label>
 
         <label class="field">
           <span>商品別</span>
@@ -143,6 +140,17 @@
           <small>請輸入或掃描識別證</small>
           <input id="employeeId" name="employeeId" required autocomplete="off" autocapitalize="characters">
         </label>
+        <label class="field">
+          <span>查看層別 <b>*</b></span>
+          <small>選擇「不分」可一次查看上、中、下全部案件</small>
+          <select id="workLayer" name="layer" required>
+            <option value="">請選擇查看範圍</option>
+            <option value="上">上</option>
+            <option value="中">中</option>
+            <option value="下">下</option>
+            <option value="不分">不分</option>
+          </select>
+        </label>
         <div id="loginError" class="message error is-hidden"></div>
         <button id="loginSubmit" class="button primary wide" type="submit">進入案件清單</button>
       </form>
@@ -154,6 +162,11 @@
         <div><small>目前處理人員</small><strong id="employeeName"></strong><p id="employeeMeta"></p></div>
         <button id="switchEmployee" type="button">切換</button>
       </div>
+      <div class="filter-strip">
+        <span>目前查看</span>
+        <strong id="activeLayerLabel">不分</strong>
+        <button id="switchLayer" type="button">更改層別</button>
+      </div>
 
       <div class="section-heading">
         <div><p class="kicker">我的任務</p><h1>我的處理中案件</h1></div>
@@ -163,7 +176,7 @@
 
       <div class="divider"></div>
       <div class="section-heading"><div><p class="kicker">待承接</p><h1>查找案件</h1></div></div>
-      <p class="lead small">預設顯示目前區塊，也可輸入零件件號或案件編號。</p>
+      <p class="lead small">依所選層別顯示，也可輸入零件件號或案件編號。</p>
       <input id="caseSearch" class="search-input" autocomplete="off" autocapitalize="characters" placeholder="搜尋零件件號或案件編號">
       <button id="searchButton" class="button primary wide" type="button">查找案件</button>
       <div id="availableCases" class="case-list"></div>
@@ -174,7 +187,7 @@
         <div class="id-mark shelving-mark">↥</div>
         <p class="kicker">上架人員身分確認</p>
         <h1>我要上架</h1>
-        <p class="lead">輸入工號後，系統會顯示所有樓層尚待完成上架的零件。</p>
+        <p class="lead">輸入工號後，系統會顯示上、中、下所有尚待完成上架的零件。</p>
       </div>
       <form id="shelvingLoginForm" novalidate>
         <label class="field">
@@ -195,7 +208,7 @@
       </div>
 
       <div class="section-heading">
-        <div><p class="kicker">不分樓層・全部列出</p><h1>待上架清單</h1></div>
+        <div><p class="kicker">上／中／下・全部列出</p><h1>待上架清單</h1></div>
         <b id="shelvingCount">0</b>
       </div>
       <p class="lead small">僅顯示最終處理方式為「重新丈量」或「請資訊部修正異常系統資料」，且尚未完成上架的案件。</p>
@@ -248,6 +261,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=20260727-4"></script>
+  <script src="app.js?v=20260727-5"></script>
 </body>
 </html>

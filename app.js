@@ -23,9 +23,8 @@ const PAGE_TITLES = {
 const state = {
   view: "home",
   previousView: "home",
-  zoneId: "",
-  zoneName: "異常待確認台車－B層",
   layer: "",
+  workLayer: "",
   employee: null,
   shelvingEmployee: null,
   activeCaseNo: "",
@@ -39,14 +38,6 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 document.addEventListener("DOMContentLoaded", init);
 
 function init() {
-  const params = new URLSearchParams(location.search);
-  state.zoneId = clean(params.get("zoneId"));
-  state.zoneName = clean(params.get("zone")) || clean(params.get("zoneName")) || state.zoneName;
-  state.layer = clean(params.get("layer")) || extractLayer(state.zoneName);
-
-  $("#currentZone").textContent = state.zoneName;
-  $("#formZone").textContent = state.zoneName;
-
   $("#openCreate").addEventListener("click", () => openCreate());
   $("#openLogin").addEventListener("click", () => showView("login"));
   $("#openShelvingLogin").addEventListener("click", () => showView("shelving-login"));
@@ -61,6 +52,7 @@ function init() {
   $("#loginForm").addEventListener("submit", login);
   $("#shelvingLoginForm").addEventListener("submit", loginForShelving);
   $("#switchEmployee").addEventListener("click", switchEmployee);
+  $("#switchLayer").addEventListener("click", switchLayer);
   $("#searchButton").addEventListener("click", loadCaseLists);
   $("#caseSearch").addEventListener("keydown", (event) => {
     if (event.key === "Enter") loadCaseLists();
@@ -103,7 +95,6 @@ function goBack() {
 function openCreate() {
   $("#createForm").reset();
   $("#qty").value = "1";
-  $("#formZone").textContent = state.zoneName;
   updateOriginalCartRule();
   hideMessage("#createError");
   showView("create");
@@ -129,11 +120,10 @@ async function submitCase(event) {
 
   const situation = $("#situation").value;
   const originalCart = clean($("#originalCart").value).toUpperCase();
+  const layer = clean($("#createLayer").value);
   const payload = {
     action: "createCase",
-    zoneId: state.zoneId,
-    zoneName: state.zoneName,
-    layer: state.layer,
+    layer,
     productType: clean($("#productType").value).toUpperCase(),
     partNo: clean($("#partNo").value).toUpperCase(),
     qty: clean($("#qty").value),
@@ -142,8 +132,8 @@ async function submitCase(event) {
     note: clean($("#note").value)
   };
 
-  if (!payload.partNo || !payload.qty || Number(payload.qty) < 1 || !payload.situation) {
-    return showMessage("#createError", "請完成零件件號、數量與現場異常情況。", true);
+  if (!layer || !payload.partNo || !payload.qty || Number(payload.qty) < 1 || !payload.situation) {
+    return showMessage("#createError", "請完成層別、零件件號、數量與現場異常情況。", true);
   }
   if (ORIGINAL_CART_REQUIRED.has(situation) && !originalCart) {
     return showMessage("#createError", "這個異常情況需要填寫原上架台車號。", true);
@@ -165,15 +155,19 @@ async function login(event) {
   event.preventDefault();
   hideMessage("#loginError");
   const employeeId = clean($("#employeeId").value).toUpperCase();
+  const workLayer = clean($("#workLayer").value);
   if (!employeeId) return showMessage("#loginError", "請輸入工號。", true);
+  if (!workLayer) return showMessage("#loginError", "請選擇要查看的層別。", true);
 
   setBusy("#loginSubmit", true, "查詢中…");
   try {
     const result = await api({ action: "getEmployee", employeeId });
     state.employee = result.employee;
+    state.workLayer = workLayer;
     $("#employeeAvatar").textContent = (result.employee.name || "人").slice(0, 1);
     $("#employeeName").textContent = result.employee.name;
     $("#employeeMeta").textContent = `${result.employee.employeeId}・${result.employee.unit}`;
+    $("#activeLayerLabel").textContent = workLayer === "不分" ? "上／中／下（不分）" : `${workLayer}層`;
     $("#caseSearch").value = "";
     showView("list");
     await loadCaseLists();
@@ -188,6 +182,12 @@ function switchEmployee() {
   state.employee = null;
   state.activeCaseNo = "";
   $("#employeeId").value = "";
+  $("#workLayer").value = "";
+  showView("login");
+}
+
+function switchLayer() {
+  $("#workLayer").value = state.workLayer;
   showView("login");
 }
 
@@ -264,7 +264,7 @@ function renderShelvingCases(cases) {
       <div class="shelving-card-meta">
         <span class="case-top">
           <strong>${escapeHtml(item.caseNo)}</strong>
-          <em class="layer-chip">${escapeHtml(item.layer || "樓層未填")}</em>
+          <em class="layer-chip">${escapeHtml(normalizeLayer(item.layer) || "層別未填")}</em>
         </span>
         <p>處理方式：${escapeHtml(item.finalResolution)}</p>
       </div>
@@ -303,8 +303,7 @@ async function loadCaseLists() {
     const result = await api({
       action: "listCases",
       employeeId: state.employee.employeeId,
-      zoneId: state.zoneId,
-      zoneName: state.zoneName,
+      layer: state.workLayer,
       query
     });
     $("#myCaseCount").textContent = String(result.myCases.length);
@@ -329,7 +328,7 @@ function renderCaseList(selector, cases, mine, emptyText) {
         <em class="status-chip">${escapeHtml(item.stage)}</em>
       </span>
       <span class="case-part">${escapeHtml(item.partNo)} <small>數量：${escapeHtml(String(item.qty))}</small></span>
-      <p>${escapeHtml(item.situation)}<br>${escapeHtml(item.zoneName)}</p>
+      <p>${escapeHtml(item.situation)}<br>層別：${escapeHtml(normalizeLayer(item.layer) || "未填")}</p>
     </button>
   `).join("");
 }
@@ -389,7 +388,7 @@ function renderCaseDetail() {
       <h2>現場通報內容</h2>
       <dl>
         <div><dt>現場異常情況</dt><dd>${escapeHtml(item.situation)}</dd></div>
-        <div><dt>異常放置區塊</dt><dd>${escapeHtml(item.zoneName)}</dd></div>
+        <div><dt>異常所在層</dt><dd>${escapeHtml(normalizeLayer(item.layer) || "未填")}</dd></div>
         <div><dt>補充說明</dt><dd>${escapeHtml(item.note || "無")}</dd></div>
         <div><dt>建立時間</dt><dd>${escapeHtml(item.createdAt)}</dd></div>
       </dl>
@@ -550,10 +549,9 @@ function clearMessages() {
   ["#createError", "#loginError", "#detailMessage", "#shelvingLoginError", "#shelvingMessage"].forEach(hideMessage);
 }
 
-function extractLayer(zoneName) {
-  const text = clean(zoneName);
-  const match = text.match(/([A-Za-z0-9]+)\s*層/);
-  return match ? `${match[1].toUpperCase()}層` : text;
+function normalizeLayer(value) {
+  const text = clean(value).replace(/層$/, "");
+  return text;
 }
 
 function clean(value) {
