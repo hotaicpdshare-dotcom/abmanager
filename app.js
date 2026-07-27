@@ -243,16 +243,32 @@ function renderShelvingCases(cases) {
   }
   container.innerHTML = cases.map((item) => `
     <article class="shelving-card">
-      <div>
+      <div class="task-primary-grid">
+        <div class="task-info">
+          <small>商品別</small>
+          <strong>${escapeHtml(item.productType || "未填寫")}</strong>
+        </div>
+        <div class="task-info part-number">
+          <small>零件件號</small>
+          <strong>${escapeHtml(item.partNo)}</strong>
+        </div>
+        <div class="task-info">
+          <small>數量</small>
+          <strong>${escapeHtml(String(item.qty))}</strong>
+        </div>
+        <div class="task-info">
+          <small>台車號</small>
+          <strong>${escapeHtml(item.originalCart || "不適用／未填")}</strong>
+        </div>
+      </div>
+      <div class="shelving-card-meta">
         <span class="case-top">
           <strong>${escapeHtml(item.caseNo)}</strong>
           <em class="layer-chip">${escapeHtml(item.layer || "樓層未填")}</em>
         </span>
-        <h2>${escapeHtml(item.partNo)} × ${escapeHtml(String(item.qty))}</h2>
-        <p>台車號：<strong>${escapeHtml(item.originalCart || "不適用／未填")}</strong></p>
         <p>處理方式：${escapeHtml(item.finalResolution)}</p>
       </div>
-      <button class="button shelving" type="button" data-shelve-case="${escapeAttr(item.caseNo)}">認領並完成</button>
+      <button class="button shelving shelving-complete" type="button" data-shelve-case="${escapeAttr(item.caseNo)}">認領並完成上架</button>
     </article>
   `).join("");
 }
@@ -269,11 +285,11 @@ async function handleShelvingClick(event) {
       caseNo,
       employeeId: state.shelvingEmployee.employeeId
     });
-    showMessage("#shelvingMessage", `${caseNo} 已由你認領並記錄為完成上架。`);
     await loadShelvingCases();
+    showMessage("#shelvingMessage", `${caseNo} 已由你認領，並記錄為完成上架。`);
   } catch (error) {
     showMessage("#shelvingMessage", error.message, true);
-    setBusy(button, false, "認領並完成");
+    setBusy(button, false, "認領並完成上架");
   }
 }
 
@@ -312,7 +328,7 @@ function renderCaseList(selector, cases, mine, emptyText) {
         <strong>${escapeHtml(item.caseNo)}</strong>
         <em class="status-chip">${escapeHtml(item.stage)}</em>
       </span>
-      <span class="case-part">${escapeHtml(item.partNo)} <small>× ${escapeHtml(String(item.qty))}</small></span>
+      <span class="case-part">${escapeHtml(item.partNo)} <small>數量：${escapeHtml(String(item.qty))}</small></span>
       <p>${escapeHtml(item.situation)}<br>${escapeHtml(item.zoneName)}</p>
     </button>
   `).join("");
@@ -349,13 +365,31 @@ function renderCaseDetail() {
   $("#detailCaseNo").textContent = item.caseNo;
   $("#detailStage").textContent = item.stage;
   $("#caseDetail").innerHTML = `
+    <section class="detail-card important-detail">
+      <div class="task-primary-grid">
+        <div class="task-info">
+          <small>商品別</small>
+          <strong>${escapeHtml(item.productType || "未填寫")}</strong>
+        </div>
+        <div class="task-info part-number">
+          <small>零件件號</small>
+          <strong>${escapeHtml(item.partNo)}</strong>
+        </div>
+        <div class="task-info">
+          <small>數量</small>
+          <strong>${escapeHtml(String(item.qty))}</strong>
+        </div>
+        <div class="task-info">
+          <small>台車號</small>
+          <strong>${escapeHtml(item.originalCart || "不適用")}</strong>
+        </div>
+      </div>
+    </section>
     <section class="detail-card">
-      <h2>${escapeHtml(item.partNo)} × ${escapeHtml(String(item.qty))}</h2>
+      <h2>現場通報內容</h2>
       <dl>
-        <div><dt>商品別</dt><dd>${escapeHtml(item.productType || "未填寫")}</dd></div>
         <div><dt>現場異常情況</dt><dd>${escapeHtml(item.situation)}</dd></div>
         <div><dt>異常放置區塊</dt><dd>${escapeHtml(item.zoneName)}</dd></div>
-        <div><dt>原上架台車號</dt><dd>${escapeHtml(item.originalCart || "不適用")}</dd></div>
         <div><dt>補充說明</dt><dd>${escapeHtml(item.note || "無")}</dd></div>
         <div><dt>建立時間</dt><dd>${escapeHtml(item.createdAt)}</dd></div>
       </dl>
@@ -483,9 +517,11 @@ function api(params) {
   });
 }
 
-function setBusy(selector, busy, text) {
-  const button = $(selector);
+function setBusy(target, busy, text) {
+  const button = typeof target === "string" ? $(target) : target;
+  if (!button) return;
   button.disabled = busy;
+  button.setAttribute("aria-busy", busy ? "true" : "false");
   button.textContent = text;
 }
 

@@ -171,19 +171,24 @@ input:focus, select:focus, textarea:focus { border-color: var(--blue); box-shado
 .case-card p { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .shelving-card {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  align-items: center;
+  gap: 13px;
   padding: 15px;
   border: 1px solid #b8d9d0;
   border-radius: 17px;
   background: #fff;
 }
-.shelving-card h2 { margin: 4px 0 7px; font-size: 18px; }
+.task-primary-grid { display: grid; grid-template-columns: .85fr 1.45fr; gap: 9px; }
+.task-info { min-width: 0; padding: 10px 11px; border-radius: 12px; background: #f2f8f6; }
+.task-info small { display: block; margin-bottom: 4px; color: var(--muted); font-size: 10px; font-weight: 900; }
+.task-info strong { display: block; overflow-wrap: anywhere; color: var(--ink); font-size: 17px; line-height: 1.25; }
+.task-info.part-number strong { color: var(--blue-dark); font-size: 20px; }
+.shelving-card-meta { display: grid; gap: 4px; }
 .shelving-card p { margin: 3px 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .shelving-card p strong { color: var(--ink); }
 .shelving-card .case-top { margin-bottom: 2px; }
-.shelving-card .button { width: 104px; min-height: 46px; padding: 8px; font-size: 11px; }
+.shelving-card .button { width: 100%; min-height: 52px; padding: 9px; font-size: 13px; }
+.shelving-card .button:disabled { cursor: wait; opacity: .62; }
+.important-detail { border-color: #abc9df; background: linear-gradient(145deg, #fff, #f0f7fb); }
 .layer-chip { display: inline-block; margin-right: 5px; padding: 5px 8px; color: var(--green-dark); border-radius: 999px; background: #dff3ed; font-size: 10px; font-weight: 900; }
 .refresh-button { margin-top: 14px; }
 .status-chip { display: inline-block; padding: 6px 9px; border-radius: 999px; color: #075ea2; background: #e2f0fb; font-size: 10px; font-weight: 900; }
@@ -204,4 +209,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--blue); box-shado
 @media (min-width: 560px) {
   body { padding: 24px 0; }
   .app-shell { min-height: calc(100vh - 48px); overflow: hidden; border-radius: 30px; }
+}
+
+@media (max-width: 380px) {
+  .task-primary-grid { grid-template-columns: 1fr; }
 }
