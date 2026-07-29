@@ -1,7 +1,8 @@
 "use strict";
 
 // 將下方網址改成 Google Apps Script 部署後的「網頁應用程式網址」。
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzAeYjy6g8jzTITNAotCP3Sph3FCZspjsMIeH5YU5nOVnyf_a99yIwRZ8Nm5Kx5OfM0/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzE4V_8FRmJokcSuYGflywFdiKU62lDTzPhc6F6VID-IsVxI6S2jHkXFH0r141NRaI/exec";
+const APP_VERSION = "v7-20260729";
 
 const ORIGINAL_CART_REQUIRED = new Set([
   "上架完仍有剩餘",
@@ -10,6 +11,7 @@ const ORIGINAL_CART_REQUIRED = new Set([
 ]);
 
 const PAGE_TITLES = {
+  floor: "選擇作業樓層",
   home: "案件作業入口",
   create: "新增異常案件",
   success: "新增異常案件",
@@ -21,8 +23,9 @@ const PAGE_TITLES = {
 };
 
 const state = {
-  view: "home",
-  previousView: "home",
+  view: "floor",
+  previousView: "floor",
+  floor: "",
   layer: "",
   workLayer: "",
   employee: null,
@@ -38,6 +41,11 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 document.addEventListener("DOMContentLoaded", init);
 
 function init() {
+  document.documentElement.dataset.appVersion = APP_VERSION;
+  $$("[data-select-floor]").forEach((button) => {
+    button.addEventListener("click", () => selectFloor(button.dataset.selectFloor));
+  });
+  $("#changeFloor").addEventListener("click", changeFloor);
   $("#openCreate").addEventListener("click", () => openCreate());
   $("#openLogin").addEventListener("click", () => showView("login"));
   $("#openShelvingLogin").addEventListener("click", () => showView("shelving-login"));
@@ -73,15 +81,15 @@ function showView(name) {
   $(`#view-${name}`).classList.add("is-active");
   $("#pageTitle").textContent = PAGE_TITLES[name];
 
-  const atHome = name === "home";
-  $("#backButton").classList.toggle("is-hidden", atHome);
-  $("#brandMark").classList.toggle("is-hidden", !atHome);
+  const atRoot = name === "floor";
+  $("#backButton").classList.toggle("is-hidden", atRoot);
+  $("#brandMark").classList.toggle("is-hidden", !atRoot);
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function goHome() {
   clearMessages();
-  showView("home");
+  showView(state.floor ? "home" : "floor");
 }
 
 function goBack() {
@@ -89,10 +97,36 @@ function goBack() {
   if (state.view === "detail") showView("list");
   else if (state.view === "shelving-list") showView("home");
   else if (state.view === "list") showView("home");
+  else if (state.view === "home") showView("floor");
   else showView("home");
 }
 
+function selectFloor(floor) {
+  const normalized = normalizeFloor(floor);
+  if (!normalized) return;
+  state.floor = normalized;
+  $("#homeFloorLabel").textContent = normalized;
+  $("#createFloorLabel").textContent = normalized;
+  $("#loginFloorLabel").textContent = normalized;
+  $("#shelvingFloorLabel").textContent = normalized;
+  $("#activeShelvingFloorLabel").textContent = normalized;
+  showView("home");
+}
+
+function changeFloor() {
+  state.floor = "";
+  state.workLayer = "";
+  state.employee = null;
+  state.shelvingEmployee = null;
+  state.activeCaseNo = "";
+  $("#workLayer").value = "";
+  $("#employeeId").value = "";
+  $("#shelvingEmployeeId").value = "";
+  showView("floor");
+}
+
 function openCreate() {
+  if (!state.floor) return showView("floor");
   $("#createForm").reset();
   $("#qty").value = "1";
   updateOriginalCartRule();
@@ -123,6 +157,7 @@ async function submitCase(event) {
   const layer = clean($("#createLayer").value);
   const payload = {
     action: "createCase",
+    floor: state.floor,
     layer,
     productType: clean($("#productType").value).toUpperCase(),
     partNo: clean($("#partNo").value).toUpperCase(),
@@ -132,8 +167,8 @@ async function submitCase(event) {
     note: clean($("#note").value)
   };
 
-  if (!layer || !payload.partNo || !payload.qty || Number(payload.qty) < 1 || !payload.situation) {
-    return showMessage("#createError", "請完成層別、零件件號、數量與現場異常情況。", true);
+  if (!state.floor || !layer || !payload.partNo || !payload.qty || Number(payload.qty) < 1 || !payload.situation) {
+    return showMessage("#createError", "請完成樓層、層別、零件件號、數量與現場異常情況。", true);
   }
   if (ORIGINAL_CART_REQUIRED.has(situation) && !originalCart) {
     return showMessage("#createError", "這個異常情況需要填寫原上架台車號。", true);
@@ -143,9 +178,17 @@ async function submitCase(event) {
   try {
     const result = await api(payload);
     $("#successCaseNo").textContent = result.caseNo;
+    $("#successLocation").textContent = `${state.floor}・${layer}`;
     showView("success");
   } catch (error) {
-    showMessage("#createError", error.message, true);
+    const oldBackend = /QR\s*Code.*異常放置區塊/i.test(error.message);
+    showMessage(
+      "#createError",
+      oldBackend
+        ? "Apps Script 仍是舊版。請將新版 code.js 完整貼入 Code.gs，並重新部署「新版本」後再試。"
+        : error.message,
+      true
+    );
   } finally {
     setBusy("#createSubmit", false, "建立案件");
   }
@@ -157,6 +200,7 @@ async function login(event) {
   const employeeId = clean($("#employeeId").value).toUpperCase();
   const workLayer = clean($("#workLayer").value);
   if (!employeeId) return showMessage("#loginError", "請輸入工號。", true);
+  if (!state.floor) return showMessage("#loginError", "請先選擇 2F 或 3F。", true);
   if (!workLayer) return showMessage("#loginError", "請選擇要查看的層別。", true);
 
   setBusy("#loginSubmit", true, "查詢中…");
@@ -167,7 +211,9 @@ async function login(event) {
     $("#employeeAvatar").textContent = (result.employee.name || "人").slice(0, 1);
     $("#employeeName").textContent = result.employee.name;
     $("#employeeMeta").textContent = `${result.employee.employeeId}・${result.employee.unit}`;
-    $("#activeLayerLabel").textContent = workLayer === "不分" ? "上／中／下（不分）" : `${workLayer}層`;
+    $("#activeLayerLabel").textContent = workLayer === "不分"
+      ? `${state.floor}・上／中／下（不分）`
+      : `${state.floor}・${workLayer}`;
     $("#caseSearch").value = "";
     showView("list");
     await loadCaseLists();
@@ -196,6 +242,7 @@ async function loginForShelving(event) {
   hideMessage("#shelvingLoginError");
   const employeeId = clean($("#shelvingEmployeeId").value).toUpperCase();
   if (!employeeId) return showMessage("#shelvingLoginError", "請輸入工號。", true);
+  if (!state.floor) return showMessage("#shelvingLoginError", "請先選擇 2F 或 3F。", true);
 
   setBusy("#shelvingLoginSubmit", true, "查詢中…");
   try {
@@ -226,7 +273,8 @@ async function loadShelvingCases() {
   try {
     const result = await api({
       action: "listShelvingCases",
-      employeeId: state.shelvingEmployee.employeeId
+      employeeId: state.shelvingEmployee.employeeId,
+      floor: state.floor
     });
     $("#shelvingCount").textContent = String(result.cases.length);
     renderShelvingCases(result.cases);
@@ -264,7 +312,7 @@ function renderShelvingCases(cases) {
       <div class="shelving-card-meta">
         <span class="case-top">
           <strong>${escapeHtml(item.caseNo)}</strong>
-          <em class="layer-chip">${escapeHtml(normalizeLayer(item.layer) || "層別未填")}</em>
+          <em class="layer-chip">${escapeHtml(formatLocation(item.floor, item.layer))}</em>
         </span>
         <p>處理方式：${escapeHtml(item.finalResolution)}</p>
       </div>
@@ -303,6 +351,7 @@ async function loadCaseLists() {
     const result = await api({
       action: "listCases",
       employeeId: state.employee.employeeId,
+      floor: state.floor,
       layer: state.workLayer,
       query
     });
@@ -325,12 +374,10 @@ function renderCaseList(selector, cases, mine, emptyText) {
     <button class="case-card ${mine ? "mine" : ""}" type="button" data-case-no="${escapeAttr(item.caseNo)}">
       <span class="case-top">
         <strong>${escapeHtml(item.caseNo)}</strong>
-        ${item.stage === "待處理"
-          ? ""
-          : `<em class="status-chip">${escapeHtml(item.stage)}</em>`}
+        ${item.stage === "待處理" ? "" : `<em class="status-chip">${escapeHtml(item.stage)}</em>`}
       </span>
       <span class="case-part">${escapeHtml(item.partNo)} <small>數量：${escapeHtml(String(item.qty))}</small></span>
-      <p>${escapeHtml(item.situation)}<br>層別：${escapeHtml(normalizeLayer(item.layer) || "未填")}</p>
+      <p>${escapeHtml(item.situation)}<br>位置：${escapeHtml(formatLocation(item.floor, item.layer))}</p>
     </button>
   `).join("");
 }
@@ -364,13 +411,8 @@ function renderCaseDetail() {
   if (!item) return;
 
   $("#detailCaseNo").textContent = item.caseNo;
-  $("#detailStage").textContent =
-    item.stage === "待處理" ? "" : item.stage;
-  
-  $("#detailStage").classList.toggle(
-    "is-hidden",
-    item.stage === "待處理"
-  );
+  $("#detailStage").textContent = item.stage === "待處理" ? "" : item.stage;
+  $("#detailStage").classList.toggle("is-hidden", item.stage === "待處理");
   $("#caseDetail").innerHTML = `
     <section class="detail-card important-detail">
       <div class="task-primary-grid">
@@ -396,6 +438,7 @@ function renderCaseDetail() {
       <h2>現場通報內容</h2>
       <dl>
         <div><dt>現場異常情況</dt><dd>${escapeHtml(item.situation)}</dd></div>
+        <div><dt>異常所在樓層</dt><dd>${escapeHtml(normalizeFloor(item.floor) || "未填")}</dd></div>
         <div><dt>異常所在層</dt><dd>${escapeHtml(normalizeLayer(item.layer) || "未填")}</dd></div>
         <div><dt>補充說明</dt><dd>${escapeHtml(item.note || "無")}</dd></div>
         <div><dt>建立時間</dt><dd>${escapeHtml(item.createdAt)}</dd></div>
@@ -404,7 +447,7 @@ function renderCaseDetail() {
     <section class="detail-card">
       <h2>處理資訊</h2>
       <dl>
-        <div><dt>目前階段</dt><dd>${escapeHtml(item.stage)}</dd></div>
+        ${item.stage === "待處理" ? "" : `<div><dt>目前階段</dt><dd>${escapeHtml(item.stage)}</dd></div>`}
         <div><dt>最終處理方式</dt><dd>${escapeHtml(item.finalResolution || "尚未選擇")}</dd></div>
         <div><dt>溢品放置區</dt><dd>${escapeHtml(item.overflowLocation || "不適用")}</dd></div>
         <div><dt>上架狀態</dt><dd>${escapeHtml(item.shelvingStatus || "不適用")}</dd></div>
@@ -517,7 +560,11 @@ function api(params) {
     }
 
     window[callbackName] = (data) => finish(null, data);
-    const query = new URLSearchParams({ ...params, callback: callbackName });
+    const query = new URLSearchParams({
+      ...params,
+      clientVersion: APP_VERSION,
+      callback: callbackName
+    });
     script.onerror = () => finish(new Error("無法連線到 Google Apps Script。"));
     script.src = `${GAS_WEB_APP_URL}?${query.toString()}`;
     document.body.appendChild(script);
@@ -560,6 +607,19 @@ function clearMessages() {
 function normalizeLayer(value) {
   const text = clean(value).replace(/層$/, "");
   return text;
+}
+
+function normalizeFloor(value) {
+  const text = clean(value).toUpperCase().replace(/\s+/g, "");
+  if (text === "2" || text === "W2" || text === "2樓") return "2F";
+  if (text === "3" || text === "W3" || text === "3樓") return "3F";
+  return text === "2F" || text === "3F" ? text : "";
+}
+
+function formatLocation(floor, layer) {
+  const normalizedFloor = normalizeFloor(floor) || "樓層未填";
+  const normalizedLayer = normalizeLayer(layer) || "層別未填";
+  return `${normalizedFloor}・${normalizedLayer}`;
 }
 
 function clean(value) {

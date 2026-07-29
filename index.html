@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1261a6">
   <title>異常案件小工具</title>
-  <link rel="stylesheet" href="style.css?v=20260727-5">
+  <link rel="stylesheet" href="style.css?v=20260729-7">
 </head>
 <body>
   <main class="app-shell">
@@ -19,14 +19,38 @@
       <button id="homeButton" class="icon-button" type="button" aria-label="回首頁">⌂</button>
     </header>
 
-    <section id="view-home" class="view is-active">
+    <section id="view-floor" class="view is-active floor-view">
+      <div class="center">
+        <div class="floor-mark">F</div>
+        <p class="kicker">掃描 QR Code 後的第一步</p>
+        <h1>請先選擇作業樓層</h1>
+        <p class="lead">2F、3F 各有自己的上／中／下異常台車；本次操作只會顯示所選樓層的案件。</p>
+      </div>
+      <div class="floor-choice-grid">
+        <button class="floor-choice" type="button" data-select-floor="3F">
+          <strong>3F</strong>
+          <small>三樓異常案件</small>
+        </button>
+        <button class="floor-choice" type="button" data-select-floor="2F">
+          <strong>2F</strong>
+          <small>二樓異常案件</small>
+        </button>
+      </div>
+    </section>
+
+    <section id="view-home" class="view">
+      <div class="floor-context">
+        <span>目前作業樓層</span>
+        <strong id="homeFloorLabel">—</strong>
+        <button id="changeFloor" type="button">切換樓層</button>
+      </div>
       <p class="kicker">請選擇本次作業</p>
       <h1>你現在要做什麼？</h1>
       <p class="lead">請依本次工作選擇新增、處理或完成上架。</p>
 
       <button id="openCreate" class="action-card primary" type="button">
         <span class="action-icon">＋</span>
-        <span><strong>新增異常案件</strong><small>選擇上／中／下層並通報異常零件</small></span>
+        <span><strong>新增異常案件</strong><small>在所選樓層選擇上／中／下並通報</small></span>
         <b>→</b>
       </button>
       <button id="openLogin" class="action-card" type="button">
@@ -44,6 +68,7 @@
     <section id="view-create" class="view">
       <p class="kicker">現場通報</p>
       <h1>新增異常案件</h1>
+      <div class="selected-floor">作業樓層：<strong id="createFloorLabel">—</strong></div>
 
       <form id="createForm" novalidate>
         <label class="field layer-field">
@@ -60,7 +85,7 @@
         <label class="field">
           <span>商品別</span>
           <small>選填；有標示商品別時再輸入</small>
-          <input id="productType" name="productType" autocomplete="off" autocapitalize="characters" placeholder="如果知道商品別請輸入">
+          <input id="productType" name="productType" autocomplete="off" autocapitalize="characters" placeholder="例如：一般零件、鈑金">
         </label>
 
         <label class="field">
@@ -120,7 +145,7 @@
       <div class="ticket">
         <small>案件編號</small>
         <strong id="successCaseNo"></strong>
-        <span>等待處理人員承接</span>
+        <span id="successLocation"></span>
         <span>最終處理方式：尚未選擇</span>
       </div>
       <button class="button primary wide" data-go-home type="button">回到作業入口</button>
@@ -132,7 +157,7 @@
         <div class="id-mark">ID</div>
         <p class="kicker">處理人員身分確認</p>
         <h1>先輸入工號</h1>
-        <p class="lead">系統會從 EMPLOYEE 分頁帶出姓名與單位。</p>
+        <p class="lead">目前樓層：<strong id="loginFloorLabel">—</strong>。系統會從 EMPLOYEE 分頁帶出姓名與單位。</p>
       </div>
       <form id="loginForm" novalidate>
         <label class="field">
@@ -164,7 +189,7 @@
       </div>
       <div class="filter-strip">
         <span>目前查看</span>
-        <strong id="activeLayerLabel">不分</strong>
+        <strong id="activeLayerLabel">—</strong>
         <button id="switchLayer" type="button">更改層別</button>
       </div>
 
@@ -187,7 +212,7 @@
         <div class="id-mark shelving-mark">↥</div>
         <p class="kicker">上架人員身分確認</p>
         <h1>我要上架</h1>
-        <p class="lead">輸入工號後，系統會顯示上、中、下所有尚待完成上架的零件。</p>
+        <p class="lead">目前樓層：<strong id="shelvingFloorLabel">—</strong>。輸入工號後，系統只顯示此樓層上、中、下尚待完成上架的零件。</p>
       </div>
       <form id="shelvingLoginForm" novalidate>
         <label class="field">
@@ -206,9 +231,13 @@
         <div><small>目前上架人員</small><strong id="shelvingEmployeeName"></strong><p id="shelvingEmployeeMeta"></p></div>
         <button id="switchShelvingEmployee" type="button">切換</button>
       </div>
+      <div class="filter-strip shelving-floor-filter">
+        <span>目前樓層</span>
+        <strong id="activeShelvingFloorLabel">—</strong>
+      </div>
 
       <div class="section-heading">
-        <div><p class="kicker">上／中／下・全部列出</p><h1>待上架清單</h1></div>
+        <div><p class="kicker">本樓層上／中／下・全部列出</p><h1>待上架清單</h1></div>
         <b id="shelvingCount">0</b>
       </div>
       <p class="lead small">僅顯示最終處理方式為「重新丈量」或「請資訊部修正異常系統資料」，且尚未完成上架的案件。</p>
@@ -232,6 +261,7 @@
           <span>目前階段</span>
           <select id="updateStage" name="stage">
             <option>處理中</option>
+            <option>待確認</option>
             <option>已結案</option>
           </select>
         </label>
@@ -260,6 +290,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=20260727-9"></script>
+  <script src="app.js?v=20260729-7"></script>
 </body>
 </html>

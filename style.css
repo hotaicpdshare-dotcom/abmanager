@@ -60,6 +60,62 @@ h2 { margin: 0 0 12px; font-size: 16px; }
 .lead { margin: 8px 0 19px; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .lead.small { font-size: 11px; }
 .center { text-align: center; }
+.floor-view { padding-top: 38px; }
+.floor-mark {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 18px;
+  place-items: center;
+  color: #fff;
+  border: 7px solid #d7eef0;
+  border-radius: 22px;
+  background: linear-gradient(145deg, var(--blue), var(--blue-dark));
+  font-size: 31px;
+  font-weight: 900;
+}
+.floor-choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
+.floor-choice {
+  min-height: 138px;
+  padding: 18px 10px;
+  border: 1px solid #9cbfd7;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 10px 25px rgba(18, 97, 166, .08);
+}
+.floor-choice strong { display: block; color: var(--blue-dark); font-size: 38px; }
+.floor-choice small { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; font-weight: 800; }
+.floor-context {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 9px;
+  align-items: center;
+  margin-bottom: 23px;
+  padding: 12px 13px;
+  border: 1px solid #b9dfe5;
+  border-radius: 15px;
+  background: #eef8fa;
+}
+.floor-context span { color: var(--muted); font-size: 11px; }
+.floor-context strong { color: var(--blue-dark); font-size: 21px; }
+.floor-context button {
+  padding: 7px 9px;
+  color: var(--blue);
+  border: 1px solid #b8ccda;
+  border-radius: 9px;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 900;
+}
+.selected-floor {
+  margin-top: 12px;
+  padding: 10px 12px;
+  color: var(--muted);
+  border-radius: 12px;
+  background: #eaf3f8;
+  font-size: 12px;
+}
+.selected-floor strong { color: var(--blue-dark); font-size: 18px; }
 .action-card {
   display: grid;
   width: 100%;
@@ -164,6 +220,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--blue); box-shado
 .shelving-card .button:disabled { cursor: wait; opacity: .62; }
 .important-detail { border-color: #abc9df; background: linear-gradient(145deg, #fff, #f0f7fb); }
 .layer-chip { display: inline-block; margin-right: 5px; padding: 5px 8px; color: var(--green-dark); border-radius: 999px; background: #dff3ed; font-size: 10px; font-weight: 900; }
+.shelving-floor-filter { background: #eef8f5; }
 .refresh-button { margin-top: 14px; }
 .status-chip { display: inline-block; padding: 6px 9px; border-radius: 999px; color: #075ea2; background: #e2f0fb; font-size: 10px; font-weight: 900; }
 .empty { padding: 18px 13px; text-align: center; color: var(--muted); border: 1px dashed #b7c6d1; border-radius: 15px; background: #f4f7f8; font-size: 11px; }
