@@ -1,7 +1,7 @@
 "use strict";
 
 // 將下方網址改成 Google Apps Script 部署後的「網頁應用程式網址」。
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzE4V_8FRmJokcSuYGflywFdiKU62lDTzPhc6F6VID-IsVxI6S2jHkXFH0r141NRaI/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwmYEzEudI0sV_QT3uVG_Xv-y-lfYZMyvXsPdG9kc0wsLMrmc-lYQ2r_knsD_qzhjra/exec";
 const APP_VERSION = "v7-20260729";
 
 const ORIGINAL_CART_REQUIRED = new Set([
