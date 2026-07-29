@@ -29,13 +29,13 @@ DASHBOARD_CSS = """
     }
 
     .block-container {
-    max-width: none;
-    width: 100%;
-    padding-top: 1.6rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    padding-bottom: 2.5rem;
-}
+        max-width: none;
+        width: 100%;
+        padding-top: 1.6rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        padding-bottom: 2.5rem;
+    }
 
     .dashboard-title {
         margin: 0 0 1.2rem;
@@ -164,6 +164,35 @@ DASHBOARD_CSS = """
     .abnormal-badge {
         background: #eef3f9;
         color: #304f78;
+    }
+
+    .pagination-meta {
+        margin: 12px 0 8px;
+        color: var(--muted);
+        font-size: .86rem;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .pagination-ellipsis {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        color: var(--muted);
+        font-weight: 700;
+    }
+
+    .stButton > button[kind="primary"] {
+        border-color: var(--hotai-blue);
+        background: var(--hotai-blue);
+        color: white;
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        border-color: #003d89;
+        background: #003d89;
+        color: white;
     }
 
     .instruction-badge {

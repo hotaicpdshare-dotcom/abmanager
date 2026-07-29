@@ -44,5 +44,5 @@ ALL_SOURCE_COLUMNS: tuple[str, ...] = (
     *OPTIONAL_SOURCE_COLUMNS,
 )
 
-# TODO: CASE 工作表目前未提供的欄位會補成空值，畫面對應格維持空白。
-# 待 CLOSED_AT 與 HANDLER 的資料來源確認後，只需更新本檔與資料來源。
+# CLOSED_AT 直接取自 CASE 工作表；未結案案件維持空白。
+# HANDLER 取自 CASE 工作表的 HANDLER_NAME。

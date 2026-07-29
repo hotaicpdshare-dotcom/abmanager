@@ -15,6 +15,7 @@ CASE_SHEET_CSV_URL = (
 LOCAL_TIMEZONE = ZoneInfo("Asia/Taipei")
 DATETIME_DISPLAY_FORMAT = "%Y-%m-%d %H:%M"
 CACHE_TTL_SECONDS = 60
+CASES_PER_PAGE = 10
 
 PAGE_TITLE = "進出異常案件 Follow 看板"
 PAGE_LAYOUT = "wide"
