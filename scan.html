@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>異常案件掃描登錄</title>
+  <link rel="stylesheet" href="scan.css?v=20261015">
+</head>
+<body data-mode="IN" data-state="BOOT">
+  <!-- 視覺隱藏的焦點接收元件：readonly 避免注音輸入法介入 -->
+  <input id="sink" readonly inputmode="none" autocomplete="off" aria-hidden="true" tabindex="-1">
+
+  <main id="app">
+    <header id="topbar">
+      <div id="floor">--</div>
+      <div id="modeBadge">移入</div>
+      <div id="topRight">
+        <div id="pending">待送出 0 筆</div>
+        <div id="dictStatus" class="dict-load">品名字典載入中…</div>
+      </div>
+      <div id="sending" class="hidden"><i></i>送出中…</div>
+    </header>
+
+    <nav id="steps">
+      <span data-step="part">① 件號</span><b>▸</b>
+      <span data-step="qty">② 數量</span><b data-out>▸</b>
+      <span data-step="emp" data-out>③ 工號</span>
+    </nav>
+
+    <section id="main">
+      <div id="hint">請掃 件號</div>
+      <div class="row" id="partRow">
+        <div class="lab">件號</div>
+        <div class="val mono" id="partVal"></div>
+        <div id="partNameBox">
+          <span class="lab">品名</span>
+          <span id="partName"></span>
+        </div>
+      </div>
+      <div class="sub" id="partOrig"></div>
+      <div id="qeWrap">
+        <div class="row" id="qtyRow">
+          <div class="lab">數量</div>
+          <div class="val mono qty" id="qtyVal"></div>
+        </div>
+        <div class="row" id="empRow">
+          <div class="lab">工號</div>
+          <div class="val mono emp" id="empVal"></div>
+        </div>
+      </div>
+      <div id="errBar" class="idle">&nbsp;</div>
+    </section>
+
+    <section id="banners">
+      <div id="bannerNet" class="banner hidden"></div>
+      <div id="bannerRej" class="banner hidden"></div>
+    </section>
+
+    <section id="recentBox">
+      <table id="recent">
+        <thead><tr><th>時間</th><th>類別</th><th>件號</th><th>品名</th><th>數量</th><th>狀態</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <div id="flash" class="hidden"></div>
+  <div id="dbg" class="hidden"></div>
+
+  <!-- 覆蓋層 -->
+  <div id="ovOk" class="ov ov-ok hidden"><div class="check">&#10003;</div><div class="t1">儲存成功</div><div class="t2" id="ovOkText"></div></div>
+  <div id="ovRej" class="ov ov-rej hidden"><div class="check">&#10005;</div><div class="t1">被系統拒絕</div><div class="t2" id="ovRejText"></div></div>
+  <div id="ovFocus" class="ov ov-focus hidden"><div class="t1">請點一下畫面</div><div class="t2">掃描已暫停，否則會打到別的程式</div></div>
+  <div id="ovBoot" class="ov ov-boot"><div class="t1">點一下開始</div><div class="t2">建議先按 F11 全螢幕</div></div>
+  <div id="ovFatal" class="ov ov-fatal hidden"><div class="t1" id="fatalText"></div><div class="t2">掃描已停止</div></div>
+
+  <!-- 本頁不載入任何外部資源 -->
+  <script src="scan_mock.js?v=20261015"></script>
+  <script src="scan.js?v=20261015"></script>
+</body>
+</html>

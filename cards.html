@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>條碼卡列印（異常案件掃描登錄）</title>
+  <style>
+    :root {
+      --blue: #1261a6; --orange: #c75a12; --gray: #7a8793; --black: #111; --red: #b83232;
+      --ink: #17222d; --muted: #5d6b78; --paper: #ffffff; --desk: #e6ebf0;
+      --mono: Consolas, "Courier New", monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--desk); color: var(--ink); font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+    .toolbar { max-width: 190mm; margin: 12px auto; padding: 10px 14px; background: #fff; border-radius: 8px; font-size: 14px; line-height: 1.6; }
+    .toolbar button { font: inherit; padding: 6px 14px; margin-right: 8px; cursor: pointer; }
+    .toolbar textarea { width: 100%; height: 90px; font: 14px/1.4 var(--mono); }
+    #libError { display: none; max-width: 190mm; margin: 12px auto; padding: 14px 18px; background: var(--red); color: #fff; font-size: 18px; font-weight: 700; border-radius: 8px; }
+    .sheet { width: 190mm; height: 277mm; margin: 12px auto; background: var(--paper); display: grid;
+      grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 1fr); gap: 0; page-break-after: always; break-after: page; overflow: hidden; }
+    .card { margin: 2mm; border: 1.2mm solid var(--black); border-radius: 3mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 2mm 1mm; overflow: hidden; }
+    .card.in { border-color: var(--blue); }
+    .card.out { border-color: var(--orange); }
+    .card.cancel { border-color: var(--gray); }
+    .card.num, .card.ok { border-color: var(--black); }
+    .card.emp { border-color: var(--black); border-style: double; }
+    .card.blank { border: 0.4mm dashed #bbb; color: #bbb; justify-content: center; font-size: 4mm; }
+    .card .title { font-size: 7.5mm; font-weight: 900; line-height: 1.1; text-align: center; }
+    .card.in .title { color: var(--blue); }
+    .card.out .title { color: var(--orange); }
+    .card .sub { font-size: 4mm; color: var(--muted); }
+    .card .qr { width: 55mm; height: 55mm; flex: none; }
+    .card .qr svg { width: 100%; height: 100%; display: block; }
+    .card .qr.none { border: 0.4mm dashed var(--red); color: var(--red); display: flex; align-items: center; justify-content: center; font-size: 4mm; text-align: center; }
+    .card .code { font-family: var(--mono); font-size: 5mm; font-weight: 700; letter-spacing: 0.3mm; }
+    .footnote { max-width: 190mm; margin: 12px auto 40px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+    @page { size: A4; margin: 10mm; }
+    @media print {
+      body { background: #fff; }
+      .toolbar, .footnote.screen-only, #libError { display: none !important; }
+      .sheet { margin: 0; width: 190mm; height: 277mm; }
+      .footnote { margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="libError">QR 函式庫載入失敗：需要連線 cdnjs.cloudflare.com（qrcode-generator 1.4.4）。請確認網路後重新整理；沒有 QR 之前，下方卡片只會顯示文字。</div>
+
+  <div class="toolbar">
+    <b>異常案件掃描登錄：條碼卡</b>（A4 直式，每頁 6 張；列印請用瀏覽器「列印」，邊界選預設、縮放 100%）<br>
+    <button type="button" onclick="window.print()">列印</button>
+    <details style="margin-top:8px">
+      <summary>產生工號卡（資料只在這個頁面，不存檔、不上傳）</summary>
+      每行一筆「工號,姓名」，例：<code>09276,王小明</code>（工號可加 E 前綴；5 碼數字）<br>
+      <textarea id="empInput" placeholder="09276,王小明&#10;12345,陳測試"></textarea><br>
+      <button type="button" id="empBtn">產生工號卡預覽</button><span id="empMsg"></span>
+    </details>
+  </div>
+
+  <div id="pages"></div>
+  <div id="empPages"></div>
+
+  <p class="footnote">工號卡內容為 E＋5 碼工號（例 <code>E09276</code>），請自行印製（可用上方「產生工號卡」）。掃描槍須設定為「結尾加 Enter」。</p>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" onerror="window.__qrLoadFailed=true"></script>
+  <script>
+  (function () {
+    "use strict";
+    var QR_OK = (typeof qrcode === "function") && !window.__qrLoadFailed;
+    if (!QR_OK) document.getElementById("libError").style.display = "block";
+
+    // [QR 內容, 中文用途, 說明, 樣式]
+    var P1 = [], P2, P3, P4;
+    for (var d = 0; d <= 5; d++) P1.push([String(d), "數量 " + d, "", "num"]);
+    P2 = [["6", "數量 6", "", "num"], ["7", "數量 7", "", "num"], ["8", "數量 8", "", "num"], ["9", "數量 9", "", "num"],
+      ["CMD-OK", "送出", "（＝ Enter）", "ok"], ["CMD-CANCEL", "取消", "回到待掃件號", "cancel"]];
+    P3 = [];
+    for (var q = 1; q <= 5; q++) P3.push(["QTY-" + q, "快速數量 " + q, "（直接送出）", "num"]);
+    P3.push(null);
+    P4 = [["CMD-IN", "切換：移入", "建議列印兩張", "in"], ["CMD-OUT", "切換：移出", "建議列印兩張", "out"]];
+
+    window.__cards = [];
+
+    function svgFor(text) {
+      // 自己用 isDark 畫 SVG（不依賴函式庫的 createSvgTag 版本差異）；錯誤更正 M；白邊 4 模組
+      var qr = qrcode(0, "M");
+      qr.addData(text);
+      qr.make();
+      var n = qr.getModuleCount(), m = 4, size = n + m * 2, path = "";
+      for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (qr.isDark(r, c)) path += "M" + (c + m) + " " + (r + m) + "h1v1h-1z";
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + size + " " + size + '" shape-rendering="crispEdges">' +
+        '<rect width="' + size + '" height="' + size + '" fill="#fff"/><path d="' + path + '" fill="#000"/></svg>';
+      return { svg: svg, qr: qr, modules: n };
+    }
+
+    function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+    function cardEl(def) {
+      var el = document.createElement("div");
+      if (!def) { el.className = "card blank"; el.textContent = "（空白）"; return el; }
+      el.className = "card " + def[3];
+      el.setAttribute("data-qr", def[0]);
+      var qrHtml;
+      if (QR_OK) {
+        var o = svgFor(def[0]);
+        qrHtml = '<div class="qr">' + o.svg + "</div>";
+        window.__cards.push({ content: def[0], label: def[1], modules: o.modules, qr: o.qr });
+      } else {
+        qrHtml = '<div class="qr none">QR 函式庫未載入</div>';
+        window.__cards.push({ content: def[0], label: def[1], modules: 0, qr: null });
+      }
+      el.innerHTML = '<div class="title">' + esc(def[1]) + (def[2] ? '<div class="sub">' + esc(def[2]) + "</div>" : "") + "</div>" +
+        qrHtml + '<div class="code">' + esc(def[0]) + "</div>";
+      return el;
+    }
+
+    function sheet(list) {
+      var s = document.createElement("section");
+      s.className = "sheet";
+      for (var i = 0; i < 6; i++) s.appendChild(i < list.length ? cardEl(list[i]) : cardEl(undefined) );
+      return s;
+    }
+    // 第 4 頁只有 2 張，其餘留空（不顯示「空白」虛線框）
+    function sheetSparse(list) {
+      var s = document.createElement("section");
+      s.className = "sheet";
+      for (var i = 0; i < 6; i++) {
+        if (i < list.length) s.appendChild(cardEl(list[i]));
+        else s.appendChild(document.createElement("div"));
+      }
+      return s;
+    }
+
+    var pages = document.getElementById("pages");
+    pages.appendChild(sheet(P1));
+    pages.appendChild(sheet(P2));
+    pages.appendChild(sheet(P3));
+    pages.appendChild(sheetSparse(P4));
+
+    // 工號卡：資料只在記憶體與畫面，不存檔、不上傳
+    document.getElementById("empBtn").addEventListener("click", function () {
+      var lines = document.getElementById("empInput").value.split(/\r?\n/);
+      var list = [], bad = [];
+      lines.forEach(function (ln, i) {
+        ln = ln.trim(); if (!ln) return;
+        var m = /^E?(\d{5})\s*[,，\t ]\s*(.*)$/i.exec(ln) || /^E?(\d{5})$/i.exec(ln);
+        if (!m) { bad.push(i + 1); return; }
+        list.push(["E" + m[1], (m[2] || "").trim() || ("工號 " + m[1]), "工號卡", "emp"]);
+      });
+      var box = document.getElementById("empPages");
+      box.innerHTML = "";
+      window.__cards = window.__cards.filter(function (c) { return c.content.charAt(0) !== "E" || /^E\d{5}$/.test(c.content) === false; });
+      for (var i = 0; i < list.length; i += 6) box.appendChild(sheetSparse(list.slice(i, i + 6)));
+      document.getElementById("empMsg").textContent = "已產生 " + list.length + " 張" + (bad.length ? "；格式錯誤的行：" + bad.join("、") : "");
+    });
+  })();
+  </script>
+</body>
+</html>
