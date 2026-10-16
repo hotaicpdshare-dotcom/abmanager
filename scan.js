@@ -1,6 +1,6 @@
 // 掃描登錄頁（正式連線版：LIVE_ENABLED=true；加 ?mock=1 可改用本機模擬後端）
 // ===== 常數區（SPEC §14；待使用者確認的值都集中在這裡）=====
-const APP_VERSION = "scan-v1-20261016c";
+const APP_VERSION = "scan-v1-20261016d";
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz4fo57pHMrfGKFtATlR6NY9gVZN6fm32G3eRPbWDtdYOMJX6e86CiVHLq-_P5Paw_z5Q/exec";       // 上線時填入新後端 /exec 網址（GOLIVE_SPEC §C1）；空白時即使 LIVE_ENABLED=true 也會 FATAL
 const LIVE_ENABLED = true;        // 硬性防呆：false 時沒有 mock=1 一律 FATAL，且 jsonp() 拒絕執行
 const SCAN_GAP_MS = 40;           // 相鄰按鍵間隔 <= 此值才視為條碼機掃描（現場需實測）
@@ -30,8 +30,8 @@ const HINT_TEXT = {
   DIFF: { s: function (g) { return g.sq > 0 ? "帳差 HOPES > WES" : g.sq < 0 ? "帳差 HOPES < WES" : "帳差 HOPES ≠ WES"; }, a: "查原因，另一系統補單",
           g: function (g) { return [g.sq ? "差 " + (g.sq > 0 ? "+" : "") + g.sq : "", g.age != null ? g.age + " 工作日" : ""].filter(Boolean).join("｜"); } },
   L6:  { s: "卡在 WES 揀貨暫存區", a: "完成分播出貨，或找資訊部", g: function (g) { return g.q != null ? g.q + " 個" : ""; } },
-  L8H: { s: "只在 HOPES 做的單", a: "WES 補做對應的單", g: function () { return ""; } },
-  L8W: { s: "只在 WES 做的單", a: "HOPES 補做對應的單", g: function () { return ""; } },
+  L8H: { s: function (g) { return g.kinds || "只在 HOPES 做的單"; }, a: "WES 沒有對應的單：WES 補做", g: function (g) { return g.sq ? "數量 " + (g.sq > 0 ? "+" : "") + g.sq : ""; } },
+  L8W: { s: function (g) { return g.kinds || "只在 WES 做的單"; }, a: "HOPES 沒有對應的單：HOPES 補做", g: function (g) { return g.sq ? "數量 " + (g.sq > 0 ? "+" : "") + g.sq : ""; } },
   L4:  { s: "WES 暫存區還有貨", a: "上架或結案", g: function (g) { return g.q != null ? g.q + " 個" : ""; } },
   CLO: { s: "HOPES 封箱未釋回", a: "釋回上架或補釋回紀錄", g: function (g) { return g.q != null ? "封箱 " + g.q + " 個" : ""; } },
   TRN: { s: "HOPES 在途超過 12 小時", a: "HOPES 補過帳／入帳", g: function (g) { return g.q != null ? g.q + " 個" : ""; } },
