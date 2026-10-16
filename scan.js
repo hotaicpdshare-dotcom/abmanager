@@ -1,6 +1,6 @@
 // 掃描登錄頁（正式連線版：LIVE_ENABLED=true；加 ?mock=1 可改用本機模擬後端）
 // ===== 常數區（SPEC §14；待使用者確認的值都集中在這裡）=====
-const APP_VERSION = "scan-v1-20261016d";
+const APP_VERSION = "scan-v1-20261016e";
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz4fo57pHMrfGKFtATlR6NY9gVZN6fm32G3eRPbWDtdYOMJX6e86CiVHLq-_P5Paw_z5Q/exec";       // 上線時填入新後端 /exec 網址（GOLIVE_SPEC §C1）；空白時即使 LIVE_ENABLED=true 也會 FATAL
 const LIVE_ENABLED = true;        // 硬性防呆：false 時沒有 mock=1 一律 FATAL，且 jsonp() 拒絕執行
 const SCAN_GAP_MS = 40;           // 相鄰按鍵間隔 <= 此值才視為條碼機掃描（現場需實測）
@@ -412,6 +412,12 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
         if (cmd.length === 1) { if (appendDigits(cmd)) beep("digit"); return; } // SCAN1D
         return err("這像是件號，現在要輸入數量");                       // SCAN-ND
       }
+      // 移出：數字卡拼完數量後直接掃工號卡＝送出（不必再掃「送出」）
+      if (state === "OUT_QTY" && isEmpCard) {
+        if (!validQty()) return;
+        empId = cmd.slice(1);
+        return submitOut(empId);
+      }
       return err("現在要輸入數量（剛剛掃到 " + t + "）");
     }
     if (state === "OUT_EMP") {
@@ -687,7 +693,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
     });
 
     // 主區
-    setText($("hint"), state === "FATAL" ? fatalMsg : (HINTS[state] || ""));
+    setText($("hint"), state === "FATAL" ? fatalMsg : (state === "OUT_QTY" && qtyStr) ? "移出：再掃 工號卡（或繼續掃數字）" : (state === "IN_QTY" && qtyStr) ? "再掃 送出（或繼續掃數字）" : (HINTS[state] || ""));
     const inPart = stepIdx === 0, inQty = stepIdx === 1, inEmp = stepIdx === 2;
     field($("partVal"), inPart ? buf : partNo, "＿＿＿＿＿＿＿＿", inPart);
     const nm = $("partName");
