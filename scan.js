@@ -1,6 +1,6 @@
 // 掃描登錄頁（正式連線版：LIVE_ENABLED=true；加 ?mock=1 可改用本機模擬後端）
 // ===== 常數區（SPEC §14；待使用者確認的值都集中在這裡）=====
-const APP_VERSION = "scan-v1-20261016e";
+const APP_VERSION = "scan-v1-20261016f";
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz4fo57pHMrfGKFtATlR6NY9gVZN6fm32G3eRPbWDtdYOMJX6e86CiVHLq-_P5Paw_z5Q/exec";       // 上線時填入新後端 /exec 網址（GOLIVE_SPEC §C1）；空白時即使 LIVE_ENABLED=true 也會 FATAL
 const LIVE_ENABLED = true;        // 硬性防呆：false 時沒有 mock=1 一律 FATAL，且 jsonp() 拒絕執行
 const SCAN_GAP_MS = 40;           // 相鄰按鍵間隔 <= 此值才視為條碼機掃描（現場需實測）
@@ -72,7 +72,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   const K_REJ = KEY_PREFIX + FLOOR + ".rejected";
 
   // ===== 狀態 =====
-  let state = "BOOT";          // BOOT FATAL IN_PART IN_QTY OUT_PART OUT_QTY OUT_EMP
+  let state = "BOOT";          // BOOT FATAL IN_PART IN_QTY OUT_PART OUT_QTY OUT_EMP OUT_CONFIRM
   let fatalMsg = "";
   let focusLost = false;
   let buf = "", tokLen = 0, tokSlow = false, lastKeyTs = 0, tokMaxGap = 0, lastInfo = null;
@@ -369,12 +369,18 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
     if (state === "IN_PART" || state === "OUT_PART") return err("請先掃件號");
     if (state === "IN_QTY") return submitIn();
     if (state === "OUT_QTY") return goEmp();
+    if (state === "OUT_CONFIRM") return submitOut(empId);
     return err("請掃工號卡（E＋5 碼）");
+  }
+  function setEmp(id) {                 // 移出：工號掃到後先停在「確認」，掃「送出」才真的送
+    if (!validQty()) return;
+    empId = id; errMsg = ""; setState("OUT_CONFIRM"); beep("ok");
   }
   function onQtyCard(n) {
     if (state === "IN_PART" || state === "OUT_PART") return err("請先掃件號");
     if (state === "IN_QTY") { qtyStr = String(n); return submitIn(); }
     if (state === "OUT_QTY") { qtyStr = String(n); return goEmp(); }
+    if (state === "OUT_EMP" || state === "OUT_CONFIRM") { qtyStr = String(n); errMsg = ""; beep("digit"); return; }   // 改數量
     return err("請掃工號卡（E＋5 碼）");
   }
 
@@ -409,24 +415,24 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
     if (state === "IN_QTY" || state === "OUT_QTY") {
       if (isDigits) {
         if (!scanned) { if (appendDigits(cmd)) onOk(); return; }      // HUMAN-D
-        if (cmd.length === 1) { if (appendDigits(cmd)) beep("digit"); return; } // SCAN1D
+        if (cmd.length === 1) { if (appendDigits(cmd)) { beep("digit"); if (state === "OUT_QTY") { errMsg = ""; setState("OUT_EMP"); } } return; } // SCAN1D（移出：游標直接跳工號，還可繼續掃數字）
         return err("這像是件號，現在要輸入數量");                       // SCAN-ND
       }
-      // 移出：數字卡拼完數量後直接掃工號卡＝送出（不必再掃「送出」）
-      if (state === "OUT_QTY" && isEmpCard) {
-        if (!validQty()) return;
-        empId = cmd.slice(1);
-        return submitOut(empId);
-      }
+      if (state === "OUT_QTY" && isEmpCard) return setEmp(cmd.slice(1));
       return err("現在要輸入數量（剛剛掃到 " + t + "）");
     }
     if (state === "OUT_EMP") {
+      if (isDigits && scanned && cmd.length === 1) { if (appendDigits(cmd)) beep("digit"); return; }   // 數量還可以繼續拼
+      if (isDigits && !scanned && cmd.length <= 4) { if (appendDigits(cmd)) beep("digit"); return; }  // 手打補數量
       let id = "";
       if (isEmpCard) id = cmd.slice(1);
       else if (isDigits && !scanned && cmd.length === 5) id = cmd;
       if (!id) return err("請掃工號卡（E＋5 碼）");
-      empId = id;
-      return submitOut(id);
+      return setEmp(id);
+    }
+    if (state === "OUT_CONFIRM") {
+      if (isEmpCard) { empId = cmd.slice(1); errMsg = ""; beep("digit"); return; }   // 換工號
+      return err("請掃「送出」確認，或掃「取消」");
     }
   }
 
@@ -467,6 +473,8 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
       e.preventDefault();
       if (buf) { buf = buf.slice(0, -1); tokSlow = true; if (!buf) resetTok(); }
       else if ((state === "IN_QTY" || state === "OUT_QTY") && qtyStr) qtyStr = qtyStr.slice(0, -1);
+      else if (state === "OUT_EMP" && qtyStr) { qtyStr = qtyStr.slice(0, -1); if (!qtyStr) setState("OUT_QTY"); }
+      else if (state === "OUT_CONFIRM") { empId = ""; setState("OUT_EMP"); }
       scheduleRender();
       return;
     }
@@ -639,7 +647,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
   function hhmmss(ms) { const d = new Date(ms); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds()); }
 
-  const HINTS = { IN_PART: "請掃 件號", IN_QTY: "請輸入 數量", OUT_PART: "移出：請掃 件號", OUT_QTY: "移出：請輸入 數量", OUT_EMP: "移出：請掃 工號卡" };
+  const HINTS = { IN_PART: "請掃 件號", IN_QTY: "請輸入 數量", OUT_PART: "移出：請掃 件號", OUT_QTY: "移出：請輸入 數量", OUT_EMP: "移出：請掃 工號卡", OUT_CONFIRM: "移出：掃 送出 確認（或 取消）" };
   function field(el, text, placeholder, active) {
     el.classList.toggle("empty", !text);
     el.classList.toggle("cur", !!active);
@@ -685,7 +693,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
     renderHint(mode);
 
     // 步驟條
-    const stepIdx = (state === "IN_PART" || state === "OUT_PART") ? 0 : (state === "IN_QTY" || state === "OUT_QTY") ? 1 : state === "OUT_EMP" ? 2 : -1;
+    const stepIdx = (state === "IN_PART" || state === "OUT_PART") ? 0 : (state === "IN_QTY" || state === "OUT_QTY") ? 1 : state === "OUT_EMP" ? 2 : state === "OUT_CONFIRM" ? 3 : -1;
     ["part", "qty", "emp"].forEach(function (s, i) {
       const el = document.querySelector('#steps [data-step="' + s + '"]');
       el.classList.toggle("on", i === stepIdx);
@@ -693,7 +701,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
     });
 
     // 主區
-    setText($("hint"), state === "FATAL" ? fatalMsg : (state === "OUT_QTY" && qtyStr) ? "移出：再掃 工號卡（或繼續掃數字）" : (state === "IN_QTY" && qtyStr) ? "再掃 送出（或繼續掃數字）" : (HINTS[state] || ""));
+    setText($("hint"), state === "FATAL" ? fatalMsg : (state === "OUT_EMP" && qtyStr) ? "移出：請掃 工號卡（數量可繼續掃數字）" : (state === "IN_QTY" && qtyStr) ? "再掃 送出（或繼續掃數字）" : (HINTS[state] || ""));
     const inPart = stepIdx === 0, inQty = stepIdx === 1, inEmp = stepIdx === 2;
     field($("partVal"), inPart ? buf : partNo, "＿＿＿＿＿＿＿＿", inPart);
     const nm = $("partName");
