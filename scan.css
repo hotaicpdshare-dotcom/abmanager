@@ -36,10 +36,12 @@ body[data-mode="OUT"] { --main: var(--orange); --bg: var(--bg-out); }
 #app {
   height: 100vh;
   display: grid;
-  grid-template-rows: 14vh 6vh minmax(0, 1fr) auto auto;
+  grid-template-rows: 14vh 6vh auto minmax(0, 1fr) auto auto;     /* 第 3 列＝移出問題提示（隱藏時高度 0） */
   background: var(--bg);
   border: 0.6vh solid var(--main);
 }
+
+#topbar { grid-row: 1; } #steps { grid-row: 2; } #outHint { grid-row: 3; } #main { grid-row: 4; } #banners { grid-row: 5; } #recentBox { grid-row: 6; }
 
 /* 頂列 */
 #topbar {
@@ -60,6 +62,8 @@ body[data-mode="OUT"] { --main: var(--orange); --bg: var(--bg-out); }
 #dictStatus.dict-load { background: rgba(255,255,255,.2); color: #fff; }
 #dictStatus.dict-ok { background: #d6f2e6; color: #0c5a43; }
 #dictStatus.dict-fail { background: var(--amber-bg); color: var(--amber); }
+#hintStatus { font-size: 2.2vh; margin-top: 0.6vh; margin-right: 1vh; font-weight: 700; padding: 0.2vh 1vh; border-radius: 0.8vh; display: inline-block; background: var(--amber-bg); color: var(--amber); }
+#hintStatus.hidden { display: none !important; }
 #sending {
   position: absolute; right: 2vw; bottom: 0.4vh;
   font-size: 2.2vh; font-weight: 700; display: flex; align-items: center; gap: 0.8vh;
@@ -78,6 +82,25 @@ body[data-mode="OUT"] { --main: var(--orange); --bg: var(--bg-out); }
 #steps span.on { background: var(--main); color: #fff; }
 #steps span.done { color: var(--ink); }
 body[data-mode="IN"] [data-out] { display: none; }
+
+/* 移出問題提示（OUTHINT_SPEC §4）：最多 3 條＋「另 N 項」，高度上限 26vh，超過截斷不捲動 */
+#outHint { padding: 0.2vh 2vw 0.2vh; max-height: 26vh; overflow: hidden; background: #fff8ee; border-bottom: 0.3vh solid var(--line); }
+.oh-head { font-size: 2.1vh; line-height: 1.1; font-weight: 700; color: var(--muted); }
+.oh-head.stale { background: #f39a3d; color: #3b2300; padding: 0 1vh; border-radius: 0.6vh; display: inline-block; }
+.oh-item { margin-top: 0.2vh; padding: 0 1vw; background: #fff; border-left: 1vh solid var(--red); border-radius: 0.6vh; }
+.oh-item.ref { border-left-color: #aab6c1; color: var(--muted); }
+.oh-main { display: flex; align-items: baseline; gap: 2vw; font-size: 3.6vh; line-height: 1.04; font-weight: 900; }
+.oh-s { flex: 0 1 44%; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oh-a { flex: 1 1 0; min-width: 0; color: var(--main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oh-item.ref .oh-s, .oh-item.ref .oh-a { color: var(--muted); font-weight: 700; }
+.oh-g { font-size: 2.1vh; line-height: 1.05; color: var(--muted); font-weight: 400; }
+.oh-more { margin-top: 0.2vh; font-size: 2.2vh; line-height: 1.1; color: var(--muted); font-weight: 700; }
+.oh-ok { margin-top: 0.3vh; font-size: 3.4vh; line-height: 1.2; font-weight: 900; color: var(--green); }
+/* 提示區塊顯示時讓位：最近紀錄只留 2 列，主區字級降一級 */
+body[data-hint="1"] #recent tbody tr:nth-child(n+3) { display: none; }
+body[data-hint="1"] #hint { font-size: 6.6vh; }
+body[data-hint="1"] .val { font-size: 5.6vh; }
+body[data-hint="1"] .val.qty { font-size: 7vh; }
 
 /* 主區 */
 #main { padding: 0.6vh 2vw 0; min-height: 0; overflow: hidden; }

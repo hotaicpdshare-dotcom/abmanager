@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>異常案件掃描登錄</title>
-  <link rel="stylesheet" href="scan.css?v=20261016">
+  <link rel="stylesheet" href="scan.css?v=20261016b">
 </head>
 <body data-mode="IN" data-state="BOOT">
   <!-- 視覺隱藏的焦點接收元件：readonly 避免注音輸入法介入 -->
@@ -17,6 +17,7 @@
       <div id="topRight">
         <div id="pending">待送出 0 筆</div>
         <div id="dictStatus" class="dict-load">品名字典載入中…</div>
+        <div id="hintStatus" class="hidden"></div>
       </div>
       <div id="sending" class="hidden"><i></i>送出中…</div>
     </header>
@@ -26,6 +27,8 @@
       <span data-step="qty">② 數量</span><b data-out>▸</b>
       <span data-step="emp" data-out>③ 工號</span>
     </nav>
+
+    <section id="outHint" class="hidden"></section>
 
     <section id="main">
       <div id="hint">請掃 件號</div>
@@ -74,8 +77,8 @@
   <div id="ovBoot" class="ov ov-boot"><div class="t1">點一下開始</div><div class="t2">建議先按 F11 全螢幕</div></div>
   <div id="ovFatal" class="ov ov-fatal hidden"><div class="t1" id="fatalText"></div><div class="t2">掃描已停止</div></div>
 
-  <!-- 本頁不載入任何外部資源 -->
-  <script src="scan_mock.js?v=20261016"></script>
-  <script src="scan.js?v=20261016"></script>
+  <!-- 本頁不載入任何外部資源（移出問題提示只讀同網域的加密檔 outhint.enc，失敗不影響掃描） -->
+  <script src="scan_mock.js?v=20261016b"></script>
+  <script src="scan.js?v=20261016b"></script>
 </body>
 </html>

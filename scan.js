@@ -1,6 +1,6 @@
 // 掃描登錄頁（正式連線版：LIVE_ENABLED=true；加 ?mock=1 可改用本機模擬後端）
 // ===== 常數區（SPEC §14；待使用者確認的值都集中在這裡）=====
-const APP_VERSION = "scan-v1-20261015";
+const APP_VERSION = "scan-v1-20261016b";
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz4fo57pHMrfGKFtATlR6NY9gVZN6fm32G3eRPbWDtdYOMJX6e86CiVHLq-_P5Paw_z5Q/exec";       // 上線時填入新後端 /exec 網址（GOLIVE_SPEC §C1）；空白時即使 LIVE_ENABLED=true 也會 FATAL
 const LIVE_ENABLED = true;        // 硬性防呆：false 時沒有 mock=1 一律 FATAL，且 jsonp() 拒絕執行
 const SCAN_GAP_MS = 40;           // 相鄰按鍵間隔 <= 此值才視為條碼機掃描（現場需實測）
@@ -12,6 +12,33 @@ const PART_MIN_LEN = 5;           // 件號長度下限（待確認）
 const PART_MAX_LEN = 25;          // 件號長度上限（待確認）
 const QTY_MAX = 9999;             // 數量上限（待確認）
 const DICT_URL = "parts_dict.json";
+// ---- 移出問題提示（OUTHINT_SPEC）：三倉看板每輪產生的加密檔（同網域），金鑰只在網址 # 後面；查不到／壞掉一律當作沒有，不影響掃描 ----
+const HINT_URL = "/991-pages/data/dash/outhint.enc";
+const HINT_RELOAD_MS = 15 * 60 * 1000;   // 每 15 分鐘（與視窗重新取得焦點時）重抓
+const HINT_STALE_H = 3;                  // 資料超過幾小時沒更新就標橘底（排程最大間隔約 1 小時 45 分）
+const HINT_MAX_ITEMS = 3;                // 畫面最多幾條，其餘合成「另 N 項」
+// 畫面優先序（跟異常區移出越相關越前面）與文案（狀況 s／動作 a／灰色小字 g）。g 的參數＝同件同代碼多列合併後的 {n,q(絕對值合計),sq(帶號合計),pos,age,kinds}
+const HINT_ORDER = ["L3", "L5", "L2W", "L2H", "L7", "L10", "DIFF", "L6", "L8H", "L8W", "L4", "CLO", "TRN", "LOC", "HTMP"];
+const HINT_TEXT = {
+  L3:  { s: "WES 異常儲位未處理", a: "找到貨：WES 釋回、補出",
+         g: function (g) { return [g.pos ? "儲位 " + g.pos : "", g.q != null ? "異常 " + g.q + " 個" : "", g.age != null ? g.age + " 工作日" : ""].filter(Boolean).join("｜"); } },
+  L5:  { s: "WES 異常區有這件", a: "放回貨架，或 WES 認列倉缺", g: function (g) { return g.q != null ? "共 " + g.q + " 個" : ""; } },
+  L2W: { s: "WES 倉缺 > HOPES 倉缺", a: "HOPES 補做倉缺暫存", g: function (g) { return g.q != null ? "差 " + g.q + " 個" : ""; } },
+  L2H: { s: "HOPES 倉缺 > WES 倉缺", a: "到 WES 認列倉缺", g: function (g) { return g.q != null ? "差 " + g.q + " 個" : ""; } },
+  L7:  { s: "WES 上架 < HOPES 入帳", a: "有貨：WES 補上架；沒貨：倉缺暫存", g: function (g) { return g.q != null ? "少上 " + g.q + " 個" : ""; } },
+  L10: { s: "WES 上架取消還沒補", a: "WES 補上架（同批次同台車）", g: function (g) { return g.q != null ? "還差 " + g.q + " 個" : ""; } },
+  DIFF: { s: function (g) { return g.sq > 0 ? "帳差 HOPES > WES" : g.sq < 0 ? "帳差 HOPES < WES" : "帳差 HOPES ≠ WES"; }, a: "查原因，另一系統補單",
+          g: function (g) { return [g.sq ? "差 " + (g.sq > 0 ? "+" : "") + g.sq : "", g.age != null ? g.age + " 工作日" : ""].filter(Boolean).join("｜"); } },
+  L6:  { s: "卡在 WES 揀貨暫存區", a: "完成分播出貨，或找資訊部", g: function (g) { return g.q != null ? g.q + " 個" : ""; } },
+  L8H: { s: "只在 HOPES 做的單", a: "WES 補做對應的單", g: function () { return ""; } },
+  L8W: { s: "只在 WES 做的單", a: "HOPES 補做對應的單", g: function () { return ""; } },
+  L4:  { s: "WES 暫存區還有貨", a: "上架或結案", g: function (g) { return g.q != null ? g.q + " 個" : ""; } },
+  CLO: { s: "HOPES 封箱未釋回", a: "釋回上架或補釋回紀錄", g: function (g) { return g.q != null ? "封箱 " + g.q + " 個" : ""; } },
+  TRN: { s: "HOPES 在途超過 12 小時", a: "HOPES 補過帳／入帳", g: function (g) { return g.q != null ? g.q + " 個" : ""; } },
+  LOC: { s: "HOPES 庫位不是 2F/3F", a: "請資訊部改 HOPES 庫位", g: function () { return ""; } },
+  HTMP: { ref: true, s: function (g) { return "HOPES 暫存未結" + (g.kinds ? "（" + g.kinds + "）" : ""); }, a: "找到貨：先結 HOPES 暫存",
+          g: function () { return "參考"; } }
+};
 const MASK_NAME = true;           // 移出成功畫面是否遮罩姓名中間字（待確認，預設遮罩）
 // ---- 其他內部常數 ----
 const SINK_REFOCUS = true;
@@ -34,6 +61,10 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   const doMask = MASK_NAME && !(MOCK && Q.get("mask") === "0");
   const dictParam = Q.get("dict");
   const dictUrl = (dictParam && /^[\w.-]+\.json$/.test(dictParam)) ? dictParam : DICT_URL;
+  const hintParam = Q.get("hint");   // 只在 mock 模式有效：指到 scan_dev 內的假資料檔
+  const hintUrl = (MOCK && hintParam && /^[\w.-]+\.enc$/.test(hintParam)) ? hintParam : HINT_URL;
+  const hintAgeH = (MOCK && Q.get("hintage") !== null && isFinite(+Q.get("hintage"))) ? +Q.get("hintage") : null;   // mock：假裝資料是幾小時前的
+  const hintKey = String(location.hash || "").replace(/^#/, "").split("/")[0].trim();
 
   const KEY_PREFIX = "abscan.v1.";
   const K_QUEUE = KEY_PREFIX + FLOOR + ".queue";
@@ -52,6 +83,8 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   let sending = false, failing = false, failReason = "", pumpTimer = null;
   let dict = null, dictState = { s: "loading", count: 0, at: "" };
   let idleTimer = null, actx = null, tabId = Math.random().toString(36).slice(2);
+  let hintMap = null, hintAt = 0, hintState = "loading", hintLoadTs = 0;   // hintState: loading nokey badkey fail ok
+  let hintPart = "", hintJust = false, hintT0 = 0;                        // 目前提示對應的件號；hintJust＝剛送出（保留上一件）
 
   const modeOf = () => (state.indexOf("OUT_") === 0 ? "OUT" : "IN");
 
@@ -139,6 +172,102 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
       });
   }
 
+  // ===== 移出問題提示（OUTHINT_SPEC）=====
+  const b64u = function (s) { return Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), function (c) { return c.charCodeAt(0); }); };
+  function loadHint() {
+    if (!hintKey) { hintState = "nokey"; return scheduleRender(); }
+    if (!(window.crypto && crypto.subtle && window.DecompressionStream)) { if (!hintMap) hintState = "fail"; return scheduleRender(); }
+    hintLoadTs = Date.now();
+    fetch(hintUrl, { cache: "no-cache" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
+      .then(function (ab) {
+        const buf = new Uint8Array(ab);
+        const bad = function () { const e = new Error("金鑰不對"); e.badkey = true; throw e; };
+        let kp;
+        try { kp = crypto.subtle.importKey("raw", b64u(hintKey), "AES-GCM", false, ["decrypt"]); } catch (e) { bad(); }
+        return kp.then(function (k) { return crypto.subtle.decrypt({ name: "AES-GCM", iv: buf.slice(0, 12) }, k, buf.slice(12)); })
+          .then(function (plain) { return new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream("gzip"))).text(); }, bad);
+      })
+      .then(function (text) {
+        const j = JSON.parse(text);
+        if (!j || j.v !== 1 || typeof j.p !== "object" || j.p === null) throw new Error("格式錯誤");
+        hintMap = new Map(Object.keys(j.p).map(function (k) { return [k, j.p[k]]; }));
+        hintAt = Date.parse(j.at) || 0;
+        hintState = "ok";
+        scheduleRender();
+      })
+      .catch(function (e) {
+        if (e && e.badkey) { hintMap = null; hintState = "badkey"; }
+        else if (!hintMap) hintState = "fail";      // 已有舊資料就繼續用舊的（失敗只在沒有任何資料時才顯示）
+        scheduleRender();
+      });
+  }
+  function hintGroup(rows) {
+    const g = { n: rows.length, q: null, sq: 0, pos: "", age: null, kinds: "" };
+    const kinds = [];
+    rows.forEach(function (r) {
+      if (r[2] !== null && r[2] !== undefined && isFinite(+r[2])) { g.q = (g.q || 0) + Math.abs(+r[2]); g.sq += +r[2]; }
+      if (!g.pos && r[4]) g.pos = r[4];
+      if (r[3] !== null && r[3] !== undefined && isFinite(+r[3]) && (g.age === null || +r[3] > g.age)) g.age = +r[3];
+      if (r[5]) String(r[5]).split(/[,，、]/).forEach(function (x) { x = x.trim(); if (x && kinds.indexOf(x) < 0) kinds.push(x); });
+    });
+    g.kinds = kinds.join("、");
+    return g;
+  }
+  // 件號 → {items:[{ref,s,a,g}], otherN, otherFloor}；同步查記憶體 Map
+  function hintOf(part) {
+    const rows = (hintMap && hintMap.get(part)) || [];
+    const loc = FLOOR.charAt(0), mine = {}, other = {};
+    rows.forEach(function (r) {
+      const d = (r[1] && r[1] !== loc) ? other : mine;     // 樓層空白（查不出）當本樓層，寧可多提示
+      (d[r[0]] = d[r[0]] || []).push(r);
+    });
+    const items = [];
+    HINT_ORDER.forEach(function (c) {
+      if (!mine[c] || !HINT_TEXT[c]) return;
+      const g = hintGroup(mine[c]), T = HINT_TEXT[c];
+      const gray = g.n > 1 ? (g.q != null ? g.n + " 個儲位，共 " + g.q + " 個" : g.n + " 筆") : T.g(g);
+      items.push({ ref: !!T.ref, s: typeof T.s === "function" ? T.s(g) : T.s, a: T.a, g: gray });
+    });
+    return { items: items, otherN: Object.keys(other).filter(function (c) { return HINT_TEXT[c]; }).length, otherFloor: loc === "2" ? "3F" : "2F" };
+  }
+  function mdhm(ms) { const d = new Date(ms); return pad2(d.getMonth() + 1) + "/" + pad2(d.getDate()) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
+  function hintHtml() {
+    const h = hintOf(hintPart);
+    const atMs = hintAgeH !== null ? Date.now() - hintAgeH * 3600000 : hintAt;
+    const hrs = atMs ? (Date.now() - atMs) / 3600000 : 0;
+    const stale = hrs > HINT_STALE_H;
+    const when = atMs ? mdhm(atMs) : "?";
+    const lead = (hintJust && state === "OUT_PART") ? "剛移出 " + hintPart + "｜" : "";
+    const total = h.items.length;
+    let head;
+    if (stale) head = lead + "資料已 " + Math.floor(hrs) + " 小時沒更新（" + when + "）";
+    else head = lead + (total ? "看板問題 " + total + " 項" : "三倉看板") + "｜資料 " + when;
+    let html = '<div class="oh-head' + (stale ? " stale" : "") + '">' + esc(head) + "</div>";
+    h.items.slice(0, HINT_MAX_ITEMS).forEach(function (it) {
+      html += '<div class="oh-item' + (it.ref ? " ref" : "") + '"><div class="oh-main"><span class="oh-s">' + esc(it.s) + '</span><span class="oh-a">' + esc(it.a) + "</span></div>" +
+        (it.g ? '<div class="oh-g">' + esc(it.g) + "</div>" : "") + "</div>";
+    });
+    const foot = [];
+    if (total > HINT_MAX_ITEMS) foot.push("另 " + (total - HINT_MAX_ITEMS) + " 項，請看三倉看板");
+    if (h.otherN) foot.push("另一樓層（" + h.otherFloor + "）有 " + h.otherN + " 項，請看三倉看板");
+    if (!total && !h.otherN) html += '<div class="oh-ok">三倉看板：這個件號目前沒有待處理問題</div>';
+    if (foot.length) html += '<div class="oh-more">' + esc(foot.join("｜")) + "</div>";
+    return html;
+  }
+
+  function renderHint(mode) {      // 只動提示區塊；掃到件號時直接呼叫一次（不等 rAF），其餘跟著 render
+    const hOn = mode === "OUT" && !!hintPart && hintState === "ok" && !!hintMap && state !== "FATAL" && state !== "BOOT";
+    const hbox = $("outHint");
+    show(hbox, hOn);
+    document.body.dataset.hint = hOn ? "1" : "0";
+    if (hOn) {
+      const hh = hintHtml();
+      if (hbox.dataset.h !== hh) { hbox.innerHTML = hh; hbox.dataset.h = hh; }
+      if (hintT0) { window.__hintMs = Math.round(performance.now() - hintT0); hintT0 = 0; }
+    } else if (hbox.dataset.h) { hbox.innerHTML = ""; hbox.dataset.h = ""; }
+  }
+
   // ===== 正規化 =====
   function normPart(raw) {
     const s = String(raw).trim();
@@ -171,12 +300,13 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
     document.body.dataset.mode = modeOf();
   }
   function clearInput() { partNo = ""; partOrig = ""; partLookup = null; qtyStr = ""; empId = ""; }
+  function hintClear() { hintPart = ""; hintJust = false; }
   function doSwitch(m) {
-    clearInput(); errMsg = ""; setState(m + "_PART"); beep("switch");
+    clearInput(); hintClear(); errMsg = ""; setState(m + "_PART"); beep("switch");
   }
   function doCancel() {
     const wasPart = (state === "IN_PART" || state === "OUT_PART");
-    clearInput(); errMsg = "";
+    clearInput(); hintClear(); errMsg = "";
     setState(modeOf() + "_PART"); beep("cancel");
     if (wasPart) ackRejected();
   }
@@ -211,7 +341,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   function submitOut(id) {
     const n = parseInt(qtyStr, 10);
     if (!enqueue("OUT", n, id)) return;
-    clearInput(); errMsg = ""; setState("OUT_PART"); beep("ok");
+    clearInput(); hintJust = !!hintPart; errMsg = ""; setState("OUT_PART"); beep("ok");   // 提示保留上一件（標題加「剛移出」），直到下一個件號／取消／切模式／閒置
   }
   function onOk() {
     if (state === "IN_PART" || state === "OUT_PART") return err("請先掃件號");
@@ -250,6 +380,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
       const r = normPart(raw);
       if (!r.ok) return err(r.msg);
       partNo = r.part; partOrig = r.orig; partLookup = lookup(partNo); qtyStr = "";
+      if (state === "OUT_PART") { hintPart = partNo; hintJust = false; hintT0 = performance.now(); renderHint("OUT"); }   // 移出才有提示：同步查記憶體 Map 並立刻畫出，不等網路、不等 rAF
       errMsg = ""; beep("ok");
       return setState(modeOf() + "_QTY");
     }
@@ -278,7 +409,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   }
   function onIdle() {
     if (modeOf() !== "OUT") return;
-    clearInput(); errMsg = ""; buf = "";
+    clearInput(); hintClear(); errMsg = ""; buf = "";
     setState("IN_PART"); beep("switch");
     notice("已閒置 " + Math.round(outIdleMs / 1000) + " 秒，自動切回移入", NOTICE_MS);
   }
@@ -519,6 +650,12 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
       setText(ds, "品名字典未載入，60 秒後重試"); ds.className = "dict-fail";
     } else { setText(ds, "品名字典載入中…"); ds.className = "dict-load"; }
 
+    // 移出問題提示：狀態列（只有異常才顯示）＋提示區塊（只在移出模式且有目前件號時）
+    const hs = $("hintStatus");
+    const hsText = hintState === "nokey" ? "問題提示：未啟用（網址缺 # 金鑰）" : hintState === "badkey" ? "問題提示：金鑰不對" : hintState === "fail" ? "問題提示：載入失敗，掃描不受影響" : "";
+    setText(hs, hsText); show(hs, !!hsText);
+    renderHint(mode);
+
     // 步驟條
     const stepIdx = (state === "IN_PART" || state === "OUT_PART") ? 0 : (state === "IN_QTY" || state === "OUT_QTY") ? 1 : state === "OUT_EMP" ? 2 : -1;
     ["part", "qty", "emp"].forEach(function (s, i) {
@@ -652,6 +789,9 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
     } catch (e) { /* 不支援就略過；clientId 冪等仍保護 */ }
 
     loadDict();
+    loadHint();
+    setInterval(loadHint, HINT_RELOAD_MS);
+    window.addEventListener("focus", function () { if (Date.now() - hintLoadTs > 60000) loadHint(); });
     setInterval(pump, POLL_MS);
     setInterval(scheduleRender, 1000);
     setTimeout(pump, 0);
