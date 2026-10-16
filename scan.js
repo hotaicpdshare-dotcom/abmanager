@@ -1,6 +1,6 @@
 // 掃描登錄頁（正式連線版：LIVE_ENABLED=true；加 ?mock=1 可改用本機模擬後端）
 // ===== 常數區（SPEC §14；待使用者確認的值都集中在這裡）=====
-const APP_VERSION = "scan-v1-20261016b";
+const APP_VERSION = "scan-v1-20261016c";
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz4fo57pHMrfGKFtATlR6NY9gVZN6fm32G3eRPbWDtdYOMJX6e86CiVHLq-_P5Paw_z5Q/exec";       // 上線時填入新後端 /exec 網址（GOLIVE_SPEC §C1）；空白時即使 LIVE_ENABLED=true 也會 FATAL
 const LIVE_ENABLED = true;        // 硬性防呆：false 時沒有 mock=1 一律 FATAL，且 jsonp() 拒絕執行
 const SCAN_GAP_MS = 40;           // 相鄰按鍵間隔 <= 此值才視為條碼機掃描（現場需實測）
@@ -191,7 +191,18 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
       .then(function (text) {
         const j = JSON.parse(text);
         if (!j || j.v !== 1 || typeof j.p !== "object" || j.p === null) throw new Error("格式錯誤");
-        hintMap = new Map(Object.keys(j.p).map(function (k) { return [k, j.p[k]]; }));
+        // 看板的 key 是「商品別＋件號」（同 dashboard_extra.split_part：固定拆第 1 碼，X_件號 也接受）；
+        // 現場掃的件號沒有商品別 → 改用純件號建索引，同一件號不同商品別的列合併，r[6] 記商品別供畫面區分
+        hintMap = new Map();
+        Object.keys(j.p).forEach(function (k) {
+          const t = String(k).toUpperCase().replace(/\s/g, "");
+          const frcd = t.length > 1 ? t.charAt(0) : "";
+          const bare = (t.length > 2 && t.charAt(1) === "_" ? t.slice(2) : t.slice(1)).replace(/[^A-Z0-9]/g, "");
+          if (!bare) return;
+          const rows = hintMap.get(bare) || [];
+          (j.p[k] || []).forEach(function (r) { const c = r.slice(); c[6] = frcd; rows.push(c); });
+          hintMap.set(bare, rows);
+        });
         hintAt = Date.parse(j.at) || 0;
         hintState = "ok";
         scheduleRender();
@@ -218,18 +229,29 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   function hintOf(part) {
     const rows = (hintMap && hintMap.get(part)) || [];
     const loc = FLOOR.charAt(0), mine = {}, other = {};
+    const frcds = [];
+    rows.forEach(function (r) { if (frcds.indexOf(r[6] || "") < 0) frcds.push(r[6] || ""); });
+    const multi = frcds.length > 1;                        // 同件號有多個商品別才分開列、標商品別
     rows.forEach(function (r) {
       const d = (r[1] && r[1] !== loc) ? other : mine;     // 樓層空白（查不出）當本樓層，寧可多提示
-      (d[r[0]] = d[r[0]] || []).push(r);
+      const key = r[0] + "|" + (multi ? (r[6] || "") : "");
+      (d[key] = d[key] || []).push(r);
     });
     const items = [];
     HINT_ORDER.forEach(function (c) {
-      if (!mine[c] || !HINT_TEXT[c]) return;
-      const g = hintGroup(mine[c]), T = HINT_TEXT[c];
-      const gray = g.n > 1 ? (g.q != null ? g.n + " 個儲位，共 " + g.q + " 個" : g.n + " 筆") : T.g(g);
-      items.push({ ref: !!T.ref, s: typeof T.s === "function" ? T.s(g) : T.s, a: T.a, g: gray });
+      if (!HINT_TEXT[c]) return;
+      frcds.forEach(function (f) {
+        const list = mine[c + "|" + (multi ? f : "")];
+        if (!list) return;
+        const g = hintGroup(list), T = HINT_TEXT[c];
+        const gray = g.n > 1 ? (g.q != null ? g.n + " 個儲位，共 " + g.q + " 個" : g.n + " 筆") : T.g(g);
+        const s = typeof T.s === "function" ? T.s(g) : T.s;
+        items.push({ ref: !!T.ref, s: multi ? "商品別 " + (f || "?") + "｜" + s : s, a: T.a, g: gray });
+      });
     });
-    return { items: items, otherN: Object.keys(other).filter(function (c) { return HINT_TEXT[c]; }).length, otherFloor: loc === "2" ? "3F" : "2F" };
+    const otherCodes = {};
+    Object.keys(other).forEach(function (k) { const c = k.split("|")[0]; if (HINT_TEXT[c]) otherCodes[k] = 1; });
+    return { items: items, otherN: Object.keys(otherCodes).length, otherFloor: loc === "2" ? "3F" : "2F" };
   }
   function mdhm(ms) { const d = new Date(ms); return pad2(d.getMonth() + 1) + "/" + pad2(d.getDate()) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
   function hintHtml() {
