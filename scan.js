@@ -237,7 +237,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
     if (cmd === "CMD-OUT") return doSwitch("OUT");
     if (cmd === "CMD-CANCEL") return doCancel();
     if (cmd === "CMD-OK" || cmd === "") return onOk();
-    const qm = /^QTY-([1-5])$/.exec(cmd);
+    const qm = /^QTY-([1-9]\d?)$/.exec(cmd);   // 快速數量卡 QTY-1～QTY-99：掃一次即設定並送出
     if (qm) return onQtyCard(+qm[1]);
     if (/^(CMD|QTY)-/.test(cmd)) return err("無效的指令卡：" + cmd);
 
