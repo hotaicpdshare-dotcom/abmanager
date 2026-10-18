@@ -1,6 +1,6 @@
 // 掃描登錄頁（正式連線版：LIVE_ENABLED=true；加 ?mock=1 可改用本機模擬後端）
 // ===== 常數區（SPEC §14；待使用者確認的值都集中在這裡）=====
-const APP_VERSION = "scan-v1-20261016f";
+const APP_VERSION = "scan-v1-20261018a";
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz4fo57pHMrfGKFtATlR6NY9gVZN6fm32G3eRPbWDtdYOMJX6e86CiVHLq-_P5Paw_z5Q/exec";       // 上線時填入新後端 /exec 網址（GOLIVE_SPEC §C1）；空白時即使 LIVE_ENABLED=true 也會 FATAL
 const LIVE_ENABLED = true;        // 硬性防呆：false 時沒有 mock=1 一律 FATAL，且 jsonp() 拒絕執行
 const SCAN_GAP_MS = 40;           // 相鄰按鍵間隔 <= 此值才視為條碼機掃描（現場需實測）
@@ -294,7 +294,9 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   function normPart(raw) {
     const s = String(raw).trim();
     if (/[^\x00-\x7F]/.test(s)) return { ok: false, msg: "件號不可含中文或全形字" };
-    const part = s.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    // 一維條碼常是「件號 空格 確認碼」：有空格就只取第一段當件號（確認碼丟掉，原始字串顯示在下方）
+    const head = /\s/.test(s) ? s.split(/\s+/)[0] : s;
+    const part = head.toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (part.length < PART_MIN_LEN || part.length > PART_MAX_LEN) {
       return { ok: false, msg: "件號長度不對（濾除符號後為 " + (part || "空") + "）" };
     }
@@ -454,6 +456,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
     if ((m = /^Key([A-Z])$/.exec(code || ""))) return m[1];
     if ((m = /^(?:Digit|Numpad)(\d)$/.exec(code || ""))) return m[1];
     if (code === "Minus" || code === "NumpadSubtract") return "-";
+    if (code === "Space") return " ";      // 條碼裡件號與確認碼之間的空格（注音輸入法開著時也要保留）
     return "";
   }
   function resetTok() { tokLen = 0; tokSlow = false; tokMaxGap = 0; }
