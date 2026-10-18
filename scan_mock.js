@@ -84,15 +84,27 @@
 
   function normPartServer(s) { return String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
 
+  function suffixRel(a, b) {
+    if (!a || !b || a === b) return false;
+    var sh = a.length < b.length ? a : b, lo = a.length < b.length ? b : a, n = lo.length - sh.length;
+    return n >= 1 && n <= 3 && sh.length >= 8 && lo.indexOf(sh) === 0;
+  }
   function process_(p) {
     var action = p.action;
     if (action !== "scanIn" && action !== "scanOut") return fail("UNKNOWN_ACTION", "後端尚未支援此動作", true);
 
     // 1. 參數驗證（不記錄到 requests）
     var floor = String(p.floor || "");
-    if (floor !== "2F" && floor !== "3F") return fail("BAD_FLOOR", "樓層參數錯誤", false);
+    if (floor !== "2F" && floor !== "3F" && floor !== "EXTRA") return fail("BAD_FLOOR", "樓層參數錯誤", false);
     var partNo = normPartServer(p.partNo);
     if (!/^[A-Z0-9]{5,25}$/.test(partNo)) return fail("BAD_PART_NO", "件號格式錯誤", false);
+    var partRaw = "";
+    if (p.partRaw !== undefined && String(p.partRaw).trim() !== "") {
+      partRaw = normPartServer(p.partRaw);
+      if (!/^[A-Z0-9]{5,25}$/.test(partRaw)) return fail("BAD_PART_NO", "件號格式錯誤", false);
+      if (partRaw === partNo) partRaw = "";
+    }
+    var pm = String(p.pm || "").toLowerCase();
     var qtyStr = String(p.qty === undefined ? "" : p.qty);
     var qty = /^\d+$/.test(qtyStr) ? parseInt(qtyStr, 10) : 0;
     if (!(qty >= 1 && qty <= 9999)) return fail("BAD_QTY", "數量必須是 1～9999 的整數", false);
@@ -135,11 +147,11 @@
       var caseNo = "A" + ymd + "-" + pad(seq[ymd], 3);
       cases.push({ caseNo: caseNo, createdAt: now, floor: floor, partNo: partNo, qty: qty, remainingQty: qty,
         stage: "待處理", finalResolution: "", closedAt: 0, closedById: "", closedByName: "",
-        partName: partName, source: "SCAN", clientId: clientId });
+        partName: partName, source: "SCAN", clientId: clientId, partRaw: partRaw });
       save(K_CASES, cases);
       save(K_SEQ, seq);
       return record({ success: true, caseNo: caseNo, floor: floor, partNo: partNo, qty: qty, partName: partName,
-        createdAt: fmt(now), replayed: false });
+        createdAt: fmt(now), partRaw: partRaw, replayed: false });
     }
 
     // scanOut
@@ -147,7 +159,14 @@
     if (!emp) return record(fail("EMPLOYEE_NOT_FOUND", "查無此工號", false));
     if (!emp.active) return record(fail("EMPLOYEE_INACTIVE", "此工號已停用", false));
 
-    var rows = cases.filter(function (r) { return r.floor === floor && r.partNo === partNo && r.stage !== "已結案"; });
+    var R = [partNo]; if (partRaw && R.indexOf(partRaw) < 0) R.push(partRaw);
+    var open = cases.filter(function (r) { return r.floor === floor && r.stage !== "已結案" && remaining(r) > 0; });
+    var rows = open.filter(function (r) { return R.indexOf(r.partNo) >= 0 || (r.partRaw && R.indexOf(r.partRaw) >= 0); });
+    if (!rows.length && pm !== "exact") {
+      rows = open.filter(function (r) { return R.some(function (x) { return suffixRel(r.partNo, x); }); });
+      var ks = []; rows.forEach(function (r) { if (ks.indexOf(r.partNo) < 0) ks.push(r.partNo); });
+      if (ks.length > 1) return record(fail("AMBIGUOUS_PART", "有多個相近件號（" + ks.join("、") + "），無法判斷要移出哪一個，請找幹部處理", false, { candidates: ks }));
+    }
     rows.sort(function (a, b) { return a.createdAt - b.createdAt || (a.caseNo < b.caseNo ? -1 : 1); });
     var avail = rows.reduce(function (s, r) { return s + remaining(r); }, 0);
     if (avail === 0) return record(fail("NO_OPEN_CASE", "本樓層沒有此件號的未結案異常", false, { available: 0 }));
@@ -161,7 +180,8 @@
       left -= dd;
       plan.push({ row: rows[i], deducted: dd, remainingAfter: remaining(rows[i]) - dd });
     }
-    var affected = [], closedCases = [];
+    var affected = [], closedCases = [], matched = [];
+    plan.forEach(function (it) { if (matched.indexOf(it.row.partNo) < 0) matched.push(it.row.partNo); });
     plan.forEach(function (it) {
       var r = it.row;
       if (it.remainingAfter > 0) {
@@ -176,7 +196,7 @@
     save(K_CASES, cases);
     var remTotal = avail - qty;
     return record({ success: true, employeeId: empId, employeeName: emp.name, floor: floor, partNo: partNo, qty: qty,
-      affected: affected, closedCases: closedCases, remainingTotal: remTotal, replayed: false });
+      affected: affected, closedCases: closedCases, remainingTotal: remTotal, matchedParts: matched, replayed: false });
   }
 
   // 對外：api(params) → Promise<result>（永不 reject；網路失敗以 retryable 結果表示）

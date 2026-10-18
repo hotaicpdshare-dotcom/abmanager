@@ -1,6 +1,6 @@
 // 掃描登錄頁（正式連線版：LIVE_ENABLED=true；加 ?mock=1 可改用本機模擬後端）
 // ===== 常數區（SPEC §14；待使用者確認的值都集中在這裡）=====
-const APP_VERSION = "scan-v1-20261018a";
+const APP_VERSION = "scan-v2-20261018b";
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz4fo57pHMrfGKFtATlR6NY9gVZN6fm32G3eRPbWDtdYOMJX6e86CiVHLq-_P5Paw_z5Q/exec";       // 上線時填入新後端 /exec 網址（GOLIVE_SPEC §C1）；空白時即使 LIVE_ENABLED=true 也會 FATAL
 const LIVE_ENABLED = true;        // 硬性防呆：false 時沒有 mock=1 一律 FATAL，且 jsonp() 拒絕執行
 const SCAN_GAP_MS = 40;           // 相鄰按鍵間隔 <= 此值才視為條碼機掃描（現場需實測）
@@ -55,7 +55,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   const Q = new URLSearchParams(location.search);
   const MOCK = Q.get("mock") === "1";
   const DEBUG = Q.get("debug") === "1";
-  const FLOOR = (/^(2F|3F)$/i.test(Q.get("floor") || "") ? Q.get("floor").toUpperCase() : "");
+  const FLOOR = (/^(2F|3F|EXTRA)$/i.test(Q.get("floor") || "") ? Q.get("floor").toUpperCase() : "");
   // 這幾個覆寫只在 mock 模式有效
   const outIdleMs = (MOCK && +Q.get("idle") > 0) ? +Q.get("idle") : OUT_IDLE_MS;
   const doMask = MASK_NAME && !(MOCK && Q.get("mask") === "0");
@@ -77,6 +77,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   let focusLost = false;
   let buf = "", tokLen = 0, tokSlow = false, lastKeyTs = 0, tokMaxGap = 0, lastInfo = null;
   let partNo = "", partOrig = "", partLookup = null, qtyStr = "", empId = "";
+  let partScan = "", partOrigText = "", partRawCode = "", partPm = "";   // partScan＝掃到的件號（已正規化、含確認碼）；partNo＝字典比對後的正式件號；partRawCode＝兩者不同時才有值；partPm＝exact/strip/miss/unloaded
   let errMsg = "", flashUntil = 0, noticeMsg = "", noticeUntil = 0;
   let okUntil = 0, okText = "", rejUntil = 0, rejText = "";
   let queue = [], recent = [], rejected = [];
@@ -84,7 +85,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   let dict = null, dictState = { s: "loading", count: 0, at: "" };
   let idleTimer = null, actx = null, tabId = Math.random().toString(36).slice(2);
   let hintMap = null, hintAt = 0, hintState = "loading", hintLoadTs = 0;   // hintState: loading nokey badkey fail ok
-  let hintPart = "", hintJust = false, hintT0 = 0;                        // 目前提示對應的件號；hintJust＝剛送出（保留上一件）
+  let hintPart = "", hintRaw = "", hintJust = false, hintT0 = 0;                        // 目前提示對應的件號；hintJust＝剛送出（保留上一件）
 
   const modeOf = () => (state.indexOf("OUT_") === 0 ? "OUT" : "IN");
 
@@ -149,6 +150,25 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   }
 
   // ===== 字典 =====
+  // 確認碼比對（與 Code.gs resolvePart_、update_all_991.py resolve_part 逐字同規則）：
+  // 完全相同 → exact；去末 1/2/3 碼（剩 >= 8 碼）在字典且恰好一個 → strip；其餘 miss；字典未載入 unloaded。不做反向補碼。
+  function resolve(p) {
+    if (!dict) return { std: p, pm: "unloaded" };
+    const has = function (k) { return Object.prototype.hasOwnProperty.call(dict, k); };
+    if (has(p)) return { std: p, pm: "exact" };
+    const hits = [];
+    for (let n = 1; n <= 3; n++) { const b = p.slice(0, p.length - n); if (b.length >= 8 && has(b)) hits.push(b); }
+    if (hits.length === 1) return { std: hits[0], pm: "strip" };
+    return { std: p, pm: "miss" };
+  }
+  // 依掃到的件號（含確認碼）重算正式件號；字典晚到時也用它補算
+  function applyScan(scan, origText) {
+    const r = resolve(scan);
+    partScan = scan; partOrigText = origText || ""; partNo = r.std; partPm = r.pm;
+    partRawCode = (r.std !== scan) ? scan : "";
+    partOrig = partRawCode ? (origText || scan) : (origText || "");
+    partLookup = lookup(partNo);
+  }
   function lookup(part) {
     if (!dict) return { k: "unloaded", name: "" };
     if (Object.prototype.hasOwnProperty.call(dict, part)) return { k: "hit", name: String(dict[part]).slice(0, NAME_MAX_LEN) };
@@ -161,7 +181,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
         if (!j || typeof j.items !== "object" || j.items === null) throw new Error("格式錯誤");
         dict = j.items;
         dictState = { s: "ok", count: j.count || Object.keys(dict).length, at: String(j.generatedAt || "") };
-        if (partNo) partLookup = lookup(partNo);
+        if (partScan && (state === "IN_QTY" || state === "OUT_QTY" || state === "OUT_EMP" || state === "OUT_CONFIRM")) applyScan(partScan, partOrigText);
         scheduleRender();
         setTimeout(loadDict, DICT_RELOAD_MS);
       })
@@ -225,28 +245,48 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
     g.kinds = kinds.join("、");
     return g;
   }
+  // 件號 → 看板列：先查掃到的原始值、再查正式件號、再依序去末 1～3 碼（剩 >= 8 碼）；第一個有資料的就用（與字典是否載入無關）
+  function hintRows(std, raw) {
+    if (!hintMap) return [];
+    const base = raw || std, tries = [raw, std];
+    for (let n = 1; n <= 3; n++) if (base.length - n >= 8) tries.push(base.slice(0, base.length - n));
+    for (let i = 0; i < tries.length; i++) {
+      const rows = tries[i] && hintMap.get(tries[i]);
+      if (rows && rows.length) return rows;
+    }
+    return [];
+  }
   // 件號 → {items:[{ref,s,a,g}], otherN, otherFloor}；同步查記憶體 Map
-  function hintOf(part) {
-    const rows = (hintMap && hintMap.get(part)) || [];
+  // EXTRA 頁沒有自己的儲位樓層：所有列都算「本頁」，不再有「另一樓層」，每條前面標 2F｜／3F｜（樓層未知標 ?F｜）
+  function hintOf(std, raw) {
+    const rows = hintRows(std, raw);
+    const isExtra = FLOOR === "EXTRA";
     const loc = FLOOR.charAt(0), mine = {}, other = {};
-    const frcds = [];
-    rows.forEach(function (r) { if (frcds.indexOf(r[6] || "") < 0) frcds.push(r[6] || ""); });
+    const frcds = [], flrs = [];
+    rows.forEach(function (r) {
+      if (frcds.indexOf(r[6] || "") < 0) frcds.push(r[6] || "");
+      const fl = isExtra ? (r[1] || "") : "";
+      if (flrs.indexOf(fl) < 0) flrs.push(fl);
+    });
+    if (isExtra) flrs.sort(function (a, b) { return a === "" ? 1 : b === "" ? -1 : a < b ? -1 : a > b ? 1 : 0; });
     const multi = frcds.length > 1;                        // 同件號有多個商品別才分開列、標商品別
     rows.forEach(function (r) {
-      const d = (r[1] && r[1] !== loc) ? other : mine;     // 樓層空白（查不出）當本樓層，寧可多提示
-      const key = r[0] + "|" + (multi ? (r[6] || "") : "");
+      const d = (!isExtra && r[1] && r[1] !== loc) ? other : mine;     // 樓層空白（查不出）當本樓層，寧可多提示
+      const key = r[0] + "|" + (multi ? (r[6] || "") : "") + "|" + (isExtra ? (r[1] || "") : "");
       (d[key] = d[key] || []).push(r);
     });
     const items = [];
     HINT_ORDER.forEach(function (c) {
       if (!HINT_TEXT[c]) return;
-      frcds.forEach(function (f) {
-        const list = mine[c + "|" + (multi ? f : "")];
-        if (!list) return;
-        const g = hintGroup(list), T = HINT_TEXT[c];
-        const gray = g.n > 1 ? (g.q != null ? g.n + " 個儲位，共 " + g.q + " 個" : g.n + " 筆") : T.g(g);
-        const s = typeof T.s === "function" ? T.s(g) : T.s;
-        items.push({ ref: !!T.ref, s: multi ? "商品別 " + (f || "?") + "｜" + s : s, a: T.a, g: gray });
+      flrs.forEach(function (fl) {
+        frcds.forEach(function (f) {
+          const list = mine[c + "|" + (multi ? f : "") + "|" + fl];
+          if (!list) return;
+          const g = hintGroup(list), T = HINT_TEXT[c];
+          const gray = g.n > 1 ? (g.q != null ? g.n + " 個儲位，共 " + g.q + " 個" : g.n + " 筆") : T.g(g);
+          const s = typeof T.s === "function" ? T.s(g) : T.s;
+          items.push({ ref: !!T.ref, s: (isExtra ? (fl ? fl + "F" : "?F") + "｜" : "") + (multi ? "商品別 " + (f || "?") + "｜" + s : s), a: T.a, g: gray });
+        });
       });
     });
     const otherCodes = {};
@@ -255,7 +295,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   }
   function mdhm(ms) { const d = new Date(ms); return pad2(d.getMonth() + 1) + "/" + pad2(d.getDate()) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
   function hintHtml() {
-    const h = hintOf(hintPart);
+    const h = hintOf(hintPart, hintRaw);
     const atMs = hintAgeH !== null ? Date.now() - hintAgeH * 3600000 : hintAt;
     const hrs = atMs ? (Date.now() - atMs) / 3600000 : 0;
     const stale = hrs > HINT_STALE_H;
@@ -323,8 +363,8 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
     document.body.dataset.state = s;
     document.body.dataset.mode = modeOf();
   }
-  function clearInput() { partNo = ""; partOrig = ""; partLookup = null; qtyStr = ""; empId = ""; }
-  function hintClear() { hintPart = ""; hintJust = false; }
+  function clearInput() { partNo = ""; partOrig = ""; partScan = ""; partOrigText = ""; partRawCode = ""; partPm = ""; partLookup = null; qtyStr = ""; empId = ""; }
+  function hintClear() { hintPart = ""; hintRaw = ""; hintJust = false; }
   function doSwitch(m) {
     clearInput(); hintClear(); errMsg = ""; setState(m + "_PART"); beep("switch");
   }
@@ -409,8 +449,8 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
       if (isDigits && scanned && cmd.length === 1) return err("請先掃件號");
       const r = normPart(raw);
       if (!r.ok) return err(r.msg);
-      partNo = r.part; partOrig = r.orig; partLookup = lookup(partNo); qtyStr = "";
-      if (state === "OUT_PART") { hintPart = partNo; hintJust = false; hintT0 = performance.now(); renderHint("OUT"); }   // 移出才有提示：同步查記憶體 Map 並立刻畫出，不等網路、不等 rAF
+      applyScan(r.part, r.orig); qtyStr = "";
+      if (state === "OUT_PART") { hintPart = partNo; hintRaw = partScan; hintJust = false; hintT0 = performance.now(); renderHint("OUT"); }   // 移出才有提示：同步查記憶體 Map 並立刻畫出，不等網路、不等 rAF
       errMsg = ""; beep("ok");
       return setState(modeOf() + "_QTY");
     }
@@ -509,7 +549,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   // ===== 佇列 =====
   function enqueue(kind, qty, employeeId) {
     const it = {
-      clientId: uuid(), kind: kind, floor: FLOOR, partNo: partNo,
+      clientId: uuid(), kind: kind, floor: FLOOR, partNo: partNo, partRaw: partRawCode, pm: partPm,
       partName: (partLookup && partLookup.k === "hit") ? partLookup.name : "",
       qty: qty, createdAt: Date.now(), tries: 0, nextAt: 0, lastError: ""
     };
@@ -537,6 +577,8 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
     sending = true; scheduleRender();
     const params = { action: it.kind === "IN" ? "scanIn" : "scanOut", floor: it.floor, partNo: it.partNo,
       qty: String(it.qty), clientId: it.clientId };
+    if (it.partRaw) params.partRaw = it.partRaw;     // 舊版佇列項目沒有 partRaw／pm → 不送，照舊
+    if (it.pm) params.pm = it.pm;
     if (it.kind === "IN") params.partName = it.partName; else params.employeeId = it.employeeId;
     let finished = false;
     const finish = function (res) {
@@ -787,7 +829,7 @@ const RETRY_CODES = ["LOCK_TIMEOUT", "INTERNAL", "UNKNOWN_ACTION"];
   // ===== 開機 =====
   function init() {
     document.body.dataset.state = "BOOT";
-    if (!FLOOR) return fatal("網址缺少樓層 ?floor=2F 或 ?floor=3F");
+    if (!FLOOR) return fatal("網址缺少樓層 ?floor=2F、3F 或 EXTRA");
     $("floor").textContent = FLOOR;
     if (!MOCK && LIVE_ENABLED !== true) return fatal("本階段未啟用正式連線（LIVE_ENABLED=false）");
     if (!MOCK && !/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(GAS_WEB_APP_URL)) return fatal("後端網址未設定（GAS_WEB_APP_URL）");
